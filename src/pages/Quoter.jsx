@@ -87,14 +87,48 @@ export default function Quoter() {
 
   const validLines = lines.filter(l => l.part_name && l.material_code);
 
+  // Cerca il miglior materiale corrispondente al tipo filamento (es. "PLA", "PETG")
+  const autoMatchMaterial = (filamentType) => {
+    if (!filamentType || materials.length === 0) return '';
+    const ft = filamentType.toLowerCase().trim();
+    // Match esatto sul material_name
+    const exact = materials.find(m => m.material_name?.toLowerCase() === ft);
+    if (exact) return exact.code;
+    // Match parziale: il nome del materiale contiene il tipo filamento
+    const partial = materials.find(m => m.material_name?.toLowerCase().includes(ft));
+    if (partial) return partial.code;
+    return '';
+  };
+
   // Quando arrivano righe dal parser 3MF, le aggiunge (o sostituisce la riga vuota iniziale)
   const handleImport = (importedLines) => {
-    const newLines = importedLines.map(r => ({
-      ...EMPTY_LINE,
-      part_name: r.part_name || '',
-      weight_g: r.weight_g || 0,
-      print_time_min: r.print_time_min || 0,
-    }));
+    const newLines = importedLines.map(r => {
+      const hasSubMaterials = r.sub_materials && r.sub_materials.length > 0;
+      if (hasSubMaterials) {
+        // Multi-materiale: assegna material_code a ogni sub-materiale
+        const subWithMatch = r.sub_materials.map(sm => ({
+          ...sm,
+          material_code: sm.material_code || autoMatchMaterial(sm.filament_type),
+        }));
+        return {
+          ...EMPTY_LINE,
+          part_name: r.part_name || '',
+          weight_g: r.weight_g || 0,
+          print_time_min: r.print_time_min || 0,
+          sub_materials: subWithMatch,
+        };
+      } else {
+        // Singolo materiale
+        const filamentType = r.filament_type || '';
+        return {
+          ...EMPTY_LINE,
+          part_name: r.part_name || '',
+          weight_g: r.weight_g || 0,
+          print_time_min: r.print_time_min || 0,
+          material_code: autoMatchMaterial(filamentType),
+        };
+      }
+    });
     setLines(prev => {
       const hasOnlyEmpty = prev.length === 1 && !prev[0].part_name && !prev[0].material_code;
       return hasOnlyEmpty ? newLines : [...prev, ...newLines];

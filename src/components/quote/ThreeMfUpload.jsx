@@ -92,6 +92,7 @@ export default function ThreeMfUpload({ onImport }) {
           lines.push({
             part_name: partName,
             material_code: '',
+            filament_type: plate.filaments[0]?.type || '',
             weight_g: Math.round(totalWeight * 100) / 100,
             print_time_min: plate.print_time_min || 0,
             labor_time_min: 0,
