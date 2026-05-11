@@ -73,8 +73,12 @@ export async function parse3MF(file) {
     const plateIdxMatch = gp.match(/plate_(\d+)\.gcode$/i);
     const plateIdx = plateIdxMatch ? parseInt(plateIdxMatch[1]) : null;
 
-    // Leggi solo i primi 10KB per i commenti di intestazione
-    const gcodeChunk = await zip.files[gp].async('string').then(s => s.slice(0, 10000));
+    // Leggi i primi 20KB (header) + ultimi 5KB (footer) dove Bambu mette il tempo totale
+    const gcodeRaw = await zip.files[gp].async('string');
+    const gcodeChunk = gcodeRaw.slice(0, 20000) + '\n' + gcodeRaw.slice(-5000);
+    // Debug: mostra le righe con "time" nel G-Code
+    const timeLines = gcodeChunk.split('\n').filter(l => /time/i.test(l)).slice(0, 10);
+    console.log('[3MF GCode time lines]', gp, timeLines);
     const gcodeData = parseGcodeHeader(gcodeChunk);
 
     if (result.slicer === 'unknown' && gcodeData.slicer) result.slicer = gcodeData.slicer;
@@ -273,11 +277,15 @@ function parseGcodeHeader(text) {
     else if (/snapmaker/i.test(content)) result.slicer = 'Snapmaker';
 
     // Tempo di stampa — vari formati Bambu/Orca/Prusa
-    const timeMatch = content.match(/estimated printing time.*?=\s*(.+)/i)
-      || content.match(/(?:estimated\s+)?printing\s+time[:\s=]+(.+)/i)
-      || content.match(/print\s*time[:\s=]+(.+)/i)
+    // Bambu footer: "; total estimated time: 1h 54m 20s" o "; total time: 1h54m"
+    // Bambu header: "; estimated printing time (normal mode) = 1h 54m 20s"
+    // Prusa: "; estimated printing time = 1h 54m 20s"
+    const timeMatch = content.match(/total\s+estimated\s+time[:\s=]+(.+)/i)
       || content.match(/total\s+time[:\s=]+(.+)/i)
-      || content.match(/TIME\s*=\s*(\d+)/i);
+      || content.match(/estimated printing time.*?[=:]\s*(.+)/i)
+      || content.match(/printing\s+time[:\s=]+(.+)/i)
+      || content.match(/print\s*time[:\s=]+(.+)/i)
+      || content.match(/^TIME\s*=\s*(\d+)/i);
     if (timeMatch && result.print_time_min == null) {
       result.print_time_min = parseTimeToMinutes(timeMatch[1].trim());
     }
