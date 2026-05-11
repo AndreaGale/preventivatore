@@ -61,63 +61,32 @@ export default function ThreeMfUpload({ onImport }) {
   const togglePlate = (key) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
 
   // Genera righe per il Quoter:
-  // - Una riga per filamento (il componente principale del piatto)
-  // - Se ci sono nomi oggetto, usa i nomi degli oggetti come nome riga
+  // Una riga per PIATTO (= un componente), con peso totale di tutti i filamenti sommati.
+  // Il nome viene preso dall'oggetto del piatto (es. "E130 BASE DI CENTRAGGIO 2026.STL").
   const handleImport = () => {
     const lines = [];
     parsedFiles.forEach(file => {
       file.plates.forEach(plate => {
-        if (plate.filaments.length > 0) {
-          // Una riga per filamento
-          plate.filaments.forEach((fil, fi) => {
-            // Cerca un nome oggetto corrispondente (per indice) se disponibile
-            const objName = plate.objects[fi]?.name || plate.objects[0]?.name || file.fileName;
-            lines.push({
-              part_name: plate.filaments.length === 1
-                ? (plate.objects[0]?.name || file.fileName)
-                : `${file.fileName} – ${fil.type || `Filamento ${fil.id}`}`,
-              material_code: '',
-              weight_g: fil.used_g || 0,
-              print_time_min: fi === 0 ? (plate.print_time_min || 0) : 0, // tempo solo al primo filamento
-              labor_time_min: 0,
-              quantity: 1,
-              manual_price: 0,
-            });
-          });
-        } else if (plate.objects.length > 0) {
-          // Nessun filamento (file progetto non slicizzato): una riga per oggetto
-          plate.objects.forEach(obj => {
-            lines.push({
-              part_name: obj.name || file.fileName,
-              material_code: '',
-              weight_g: 0,
-              print_time_min: plate.print_time_min || 0,
-              labor_time_min: 0,
-              quantity: 1,
-              manual_price: 0,
-            });
-          });
-        } else {
-          // Fallback: riga generica con il nome del file
-          lines.push({
-            part_name: file.fileName,
-            material_code: '',
-            weight_g: 0,
-            print_time_min: plate.print_time_min || 0,
-            labor_time_min: 0,
-            quantity: 1,
-            manual_price: 0,
-          });
-        }
+        const partName = plate.objects[0]?.name?.replace(/\.stl$/i, '').trim()
+          || file.fileName;
+        const totalWeight = plate.filaments.reduce((s, f) => s + (f.used_g || 0), 0);
+
+        lines.push({
+          part_name: partName,
+          material_code: '',
+          weight_g: Math.round(totalWeight * 100) / 100,
+          print_time_min: plate.print_time_min || 0,
+          labor_time_min: 0,
+          quantity: 1,
+          manual_price: 0,
+        });
       });
     });
     onImport(lines);
     clear();
   };
 
-  const totalLines = parsedFiles.reduce((sum, f) =>
-    sum + f.plates.reduce((s, p) => s + Math.max(p.filaments.length, p.objects.length, 1), 0), 0
-  );
+  const totalLines = parsedFiles.reduce((sum, f) => sum + f.plates.length, 0);
 
   return (
     <div className="space-y-3">
@@ -167,7 +136,7 @@ export default function ThreeMfUpload({ onImport }) {
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-green-500" />
               <p className="text-xs font-semibold text-foreground">
-                {parsedFiles.length} file · {totalLines} righe preventivo
+                {parsedFiles.length} file · {totalLines} componenti
               </p>
             </div>
             <button onClick={clear} className="text-muted-foreground hover:text-foreground">
