@@ -66,32 +66,41 @@ export async function parse3MF(file) {
     }
   }
 
-  // ─── 2. Leggi il G-Code embedded per avere dati extra se slice_info è vuota ─
-  if (result.plates.length === 0 || result.plates.every(p => p.print_time_min == null)) {
-    const gcodePaths = fileNames.filter(f => /metadata\/plate_\d+\.gcode$/i.test(f));
-    for (const gp of gcodePaths) {
-      // Leggi solo i primi 8KB per trovare i commenti di intestazione
-      const gcodeChunk = await zip.files[gp].async('string').then(s => s.slice(0, 8000));
-      const gcodeData = parseGcodeHeader(gcodeChunk);
-      if (gcodeData.print_time_min != null || gcodeData.filaments.length > 0) {
-        if (result.slicer === 'unknown' && gcodeData.slicer) result.slicer = gcodeData.slicer;
-        // Aggiorna il piatto corrispondente o crea uno nuovo
-        const plateIdx = result.plates.length; // usa il prossimo indice
-        const existingPlate = result.plates.find(p => p.plate_idx === (gcodePaths.indexOf(gp) + 1));
-        if (existingPlate) {
-          if (existingPlate.print_time_min == null) existingPlate.print_time_min = gcodeData.print_time_min;
-          if (existingPlate.filaments.length === 0) existingPlate.filaments = gcodeData.filaments;
-        } else {
-          result.plates.push({
-            plate_idx: gcodePaths.indexOf(gp) + 1,
-            print_time_min: gcodeData.print_time_min,
-            support_used: false,
-            printer_model: gcodeData.printer_model || '',
-            objects: gcodeData.objects || [],
-            filaments: gcodeData.filaments,
-          });
-        }
+  // ─── 2. Leggi il G-Code embedded per completare i dati mancanti (es. print_time) ─
+  const gcodePaths = fileNames.filter(f => /metadata\/plate_\d+\.gcode$/i.test(f));
+  for (const gp of gcodePaths) {
+    // Estrai l'indice del piatto dal nome file (plate_1.gcode → 1)
+    const plateIdxMatch = gp.match(/plate_(\d+)\.gcode$/i);
+    const plateIdx = plateIdxMatch ? parseInt(plateIdxMatch[1]) : null;
+
+    // Leggi solo i primi 10KB per i commenti di intestazione
+    const gcodeChunk = await zip.files[gp].async('string').then(s => s.slice(0, 10000));
+    const gcodeData = parseGcodeHeader(gcodeChunk);
+
+    if (result.slicer === 'unknown' && gcodeData.slicer) result.slicer = gcodeData.slicer;
+
+    // Trova il piatto corrispondente
+    const existingPlate = plateIdx != null
+      ? result.plates.find(p => p.plate_idx === plateIdx)
+      : null;
+
+    if (existingPlate) {
+      // Aggiorna solo i campi mancanti
+      if (existingPlate.print_time_min == null && gcodeData.print_time_min != null) {
+        existingPlate.print_time_min = gcodeData.print_time_min;
       }
+      if (existingPlate.filaments.length === 0 && gcodeData.filaments.length > 0) {
+        existingPlate.filaments = gcodeData.filaments;
+      }
+    } else if (gcodeData.print_time_min != null || gcodeData.filaments.length > 0) {
+      result.plates.push({
+        plate_idx: plateIdx || result.plates.length + 1,
+        print_time_min: gcodeData.print_time_min,
+        support_used: false,
+        printer_model: gcodeData.printer_model || '',
+        objects: gcodeData.objects || [],
+        filaments: gcodeData.filaments,
+      });
     }
   }
 
@@ -145,6 +154,14 @@ export async function parse3MF(file) {
       filaments: [],
     });
   }
+
+  // Debug: logga il risultato del parsing
+  console.log('[3MF Parser]', result.fileName, result.plates.map(p => ({
+    plate: p.plate_idx,
+    print_time_min: p.print_time_min,
+    filaments: p.filaments.length,
+    objects: p.objects.map(o => o.name),
+  })));
 
   return result;
 }
@@ -255,10 +272,12 @@ function parseGcodeHeader(text) {
     else if (/prusaslicer/i.test(content)) result.slicer = 'PrusaSlicer';
     else if (/snapmaker/i.test(content)) result.slicer = 'Snapmaker';
 
-    // Tempo di stampa
-    const timeMatch = content.match(/(?:estimated\s+)?printing\s+time[:\s=]+(.+)/i)
+    // Tempo di stampa — vari formati Bambu/Orca/Prusa
+    const timeMatch = content.match(/estimated printing time.*?=\s*(.+)/i)
+      || content.match(/(?:estimated\s+)?printing\s+time[:\s=]+(.+)/i)
       || content.match(/print\s*time[:\s=]+(.+)/i)
-      || content.match(/total\s+time[:\s=]+(.+)/i);
+      || content.match(/total\s+time[:\s=]+(.+)/i)
+      || content.match(/TIME\s*=\s*(\d+)/i);
     if (timeMatch && result.print_time_min == null) {
       result.print_time_min = parseTimeToMinutes(timeMatch[1].trim());
     }
