@@ -4,9 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChevronDown, Search } from 'lucide-react';
 
-export default function MaterialSelector({ materials, value, onChange }) {
+export default function MaterialSelector({ materials, value, onChange, hint }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+
+  // Quando si apre con un hint (tipo filamento), pre-filtra
+  const handleOpenChange = (o) => {
+    if (o && hint && !search) setSearch(hint);
+    if (!o) setSearch('');
+    setOpen(o);
+  };
 
   const selected = materials.find(m => m.code === value);
 
@@ -22,7 +29,7 @@ export default function MaterialSelector({ materials, value, onChange }) {
   }, [materials, search]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button variant="outline" className="w-full justify-between text-left font-normal h-9 text-xs">
           {selected ? (
@@ -30,7 +37,7 @@ export default function MaterialSelector({ materials, value, onChange }) {
               {selected.material_name} - {selected.brand} ({selected.color})
             </span>
           ) : (
-            <span className="text-muted-foreground">Seleziona materiale...</span>
+            <span className="text-muted-foreground">{hint ? `${hint} – seleziona...` : 'Seleziona materiale...'}</span>
           )}
           <ChevronDown className="w-3 h-3 ml-1 shrink-0 opacity-50" />
         </Button>

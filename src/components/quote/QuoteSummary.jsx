@@ -5,7 +5,7 @@ export default function QuoteSummary({ lines, materials, config }) {
   const totals = lines.reduce(
     (acc, line) => {
       const material = materials.find(m => m.code === line.material_code);
-      const calc = calculateLinePrice(line, material, config);
+      const calc = calculateLinePrice(line, material, config, materials);
       return {
         materialCost: acc.materialCost + calc.materialCost * line.quantity,
         machineCost: acc.machineCost + calc.machineCost * line.quantity,

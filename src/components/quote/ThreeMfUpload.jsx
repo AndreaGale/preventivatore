@@ -71,15 +71,34 @@ export default function ThreeMfUpload({ onImport }) {
           || file.fileName;
         const totalWeight = plate.filaments.reduce((s, f) => s + (f.used_g || 0), 0);
 
-        lines.push({
-          part_name: partName,
-          material_code: '',
-          weight_g: Math.round(totalWeight * 100) / 100,
-          print_time_min: plate.print_time_min || 0,
-          labor_time_min: 0,
-          quantity: 1,
-          manual_price: 0,
-        });
+        if (plate.filaments.length > 1) {
+          // Multi-materiale: sub_materials con peso per ciascun filamento
+          lines.push({
+            part_name: partName,
+            material_code: '',
+            weight_g: Math.round(totalWeight * 100) / 100,
+            print_time_min: plate.print_time_min || 0,
+            labor_time_min: 0,
+            quantity: 1,
+            manual_price: 0,
+            sub_materials: plate.filaments.map(fil => ({
+              filament_type: fil.type || '',
+              filament_color: fil.color || '',
+              material_code: '',
+              weight_g: Math.round((fil.used_g || 0) * 100) / 100,
+            })),
+          });
+        } else {
+          lines.push({
+            part_name: partName,
+            material_code: '',
+            weight_g: Math.round(totalWeight * 100) / 100,
+            print_time_min: plate.print_time_min || 0,
+            labor_time_min: 0,
+            quantity: 1,
+            manual_price: 0,
+          });
+        }
       });
     });
     onImport(lines);

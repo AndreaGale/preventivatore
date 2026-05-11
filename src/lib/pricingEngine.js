@@ -74,11 +74,25 @@ export function computeDerivedCosts(config) {
   };
 }
 
-export function calculateLinePrice(line, material, config) {
+export function calculateLinePrice(line, material, config, allMaterials) {
   const derived = computeDerivedCosts(config);
-  
-  const weightWithWaste = line.weight_g * 1.05; // +5% scarto
-  const materialCost = weightWithWaste * (material?.price_per_gram || 0);
+
+  // Calcolo costo materiale: supporta multi-materiale (sub_materials) o singolo materiale
+  let materialCost = 0;
+  let totalWeight = 0;
+  if (line.sub_materials && line.sub_materials.length > 0) {
+    for (const sm of line.sub_materials) {
+      const mat = allMaterials?.find(m => m.code === sm.material_code);
+      const w = sm.weight_g * 1.05;
+      materialCost += w * (mat?.price_per_gram || 0);
+      totalWeight += sm.weight_g;
+    }
+  } else {
+    totalWeight = line.weight_g;
+    const weightWithWaste = totalWeight * 1.05;
+    materialCost = weightWithWaste * (material?.price_per_gram || 0);
+  }
+
   const machineCost = line.print_time_min * derived.machineCostPerMinute;
   const laborCost = line.labor_time_min * derived.laborCostPerMinute;
   
@@ -90,7 +104,7 @@ export function calculateLinePrice(line, material, config) {
   const pricePerUnit = netPrice / line.quantity;
   
   return {
-    weightWithWaste,
+    weightWithWaste: totalWeight * 1.05,
     materialCostPerGram: material?.price_per_gram || 0,
     materialCost,
     machineCost,
