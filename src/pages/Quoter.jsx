@@ -87,20 +87,19 @@ export default function Quoter() {
 
   const validLines = lines.filter(l => l.part_name && l.material_code);
 
-  // Quando arrivano dati dal parser 3MF, aggiunge le righe (o aggiorna l'unica vuota)
-  const handleParsed = (parsedResults) => {
-    const newLines = parsedResults.map(r => ({
+  // Quando arrivano righe dal parser 3MF, le aggiunge (o sostituisce la riga vuota iniziale)
+  const handleImport = (importedLines) => {
+    const newLines = importedLines.map(r => ({
       ...EMPTY_LINE,
       part_name: r.part_name || '',
       weight_g: r.weight_g || 0,
       print_time_min: r.print_time_min || 0,
     }));
     setLines(prev => {
-      // Se c'è solo una riga vuota, sostituiscila; altrimenti appendi
       const hasOnlyEmpty = prev.length === 1 && !prev[0].part_name && !prev[0].material_code;
       return hasOnlyEmpty ? newLines : [...prev, ...newLines];
     });
-    toast.success(`${parsedResults.length} file importati`);
+    toast.success(`${importedLines.length} componenti importati`);
   };
 
   return (
@@ -122,7 +121,7 @@ export default function Quoter() {
       {/* 3MF Upload */}
       <div className="bg-card rounded-xl border border-border p-5 mb-6">
         <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Importa da file .3mf</p>
-        <ThreeMfUpload onParsed={handleParsed} />
+        <ThreeMfUpload onImport={handleImport} />
       </div>
 
       {/* Client Info */}
