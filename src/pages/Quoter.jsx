@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Save } from 'lucide-react';
 import { toast } from 'sonner';
-import QuoteLineRow from '@/components/quote/QuoteLineRow';
+import QuoteLineRow from '@/components/quote/QuoteLineRow.jsx';
 import QuoteSummary from '@/components/quote/QuoteSummary';
 import ThreeMfUpload from '@/components/quote/ThreeMfUpload';
 import { computeDefaultConfig } from '@/lib/pricingEngine';
