@@ -1,7 +1,18 @@
 import JSZip from 'jszip';
 
 /**
- * Parsa un file .3mf ed estrae i piatti con i loro oggetti/componenti.
+ * Parsa un file .3mf di Bambu Studio / OrcaSlicer / PrusaSlicer.
+ *
+ * Struttura reale di slice_info.config (Bambu/Orca):
+ * <config>
+ *   <plate>
+ *     <metadata key="printer_model_id" value="..."/>
+ *     <metadata key="support_used" value="1"/>
+ *     <metadata key="print_time" value="1h54m20s"/>
+ *     <object name="NomeComponente"/>
+ *     <filament id="1" type="PLA" color="#FF0000" used_m="28.89" used_g="83.39"/>
+ *   </plate>
+ * </config>
  *
  * Ritorna:
  * {
@@ -11,16 +22,10 @@ import JSZip from 'jszip';
  *     {
  *       plate_idx: number,
  *       print_time_min: number | null,
- *       objects: [
- *         {
- *           name: string,
- *           filament_type: string,       // es. "PLA", "PETG"
- *           filament_color: string,      // es. "#FF0000"
- *           weight_g: number | null,
- *           has_support: boolean,
- *           support_weight_g: number | null,
- *         }
- *       ]
+ *       support_used: boolean,
+ *       printer_model: string,
+ *       objects: [{ name: string }],
+ *       filaments: [{ id, type, color, used_g, used_m }]
  *     }
  *   ]
  * }
@@ -35,222 +40,340 @@ export async function parse3MF(file) {
     plates: [],
   };
 
-  // ─── Leggi tutti i file di metadati rilevanti ────────────────────────────────
-  const readXml = async (path) => {
-    const content = await zip.files[path].async('string');
-    const parser = new DOMParser();
-    return parser.parseFromString(content, 'application/xml');
-  };
+  // ─── Leggi tutti i file rilevanti ────────────────────────────────────────────
+  const readText = async (path) => zip.files[path].async('string');
 
-  // ─── 1. BAMBU STUDIO / ORCA SLICER ──────────────────────────────────────────
-  // slice_info.config → per piatto: tempo, filamenti usati per oggetto
-  // model_settings.config → nomi oggetti, assegnazione filamento, supporti
-  const sliceInfoPath = fileNames.find(f => /metadata\/slice_info\.config$/i.test(f));
-  const modelSettingsPath = fileNames.find(f => /metadata\/model_settings\.config$/i.test(f));
-  const modelPath = fileNames.find(f => /3d\/3dmodel\.model$/i.test(f) || /3dmodel\.model$/i.test(f));
+  // ─── 1. Bambu Studio / OrcaSlicer → slice_info.config ────────────────────────
+  // Una per piatto: Metadata/slice_info.config (oppure multipli per gcode.3mf)
+  const sliceInfoPaths = fileNames.filter(f =>
+    /metadata\/slice_info/i.test(f) && f.endsWith('.config')
+  );
 
-  if (sliceInfoPath) {
-    const doc = await readXml(sliceInfoPath);
+  if (sliceInfoPaths.length > 0) {
+    for (let si = 0; si < sliceInfoPaths.length; si++) {
+      const xml = await readText(sliceInfoPaths[si]);
+      const plates = parseBambuSliceInfoXml(xml, si + 1);
+      result.plates.push(...plates);
+    }
+    // Determina slicer dal primo file
+    if (result.slicer === 'unknown') {
+      // Cerca "Snapmaker", "Bambu", "Orca" nei metadati
+      const firstXml = await readText(sliceInfoPaths[0]);
+      if (firstXml.toLowerCase().includes('snapmaker')) result.slicer = 'Snapmaker';
+      else if (firstXml.toLowerCase().includes('bambu')) result.slicer = 'Bambu Studio';
+      else if (firstXml.toLowerCase().includes('orca')) result.slicer = 'OrcaSlicer';
+      else result.slicer = 'Bambu/Orca';
+    }
+  }
 
-    // Rileva slicer dal root
-    const root = doc.documentElement;
-    const slicerAttr = root.getAttribute('slicer') || root.getAttribute('slicersoftware') || '';
-    if (slicerAttr.toLowerCase().includes('bambu')) result.slicer = 'Bambu Studio';
-    else if (slicerAttr.toLowerCase().includes('orca')) result.slicer = 'OrcaSlicer';
-
-    // Filamenti globali (per tipo e colore)
-    const globalFilaments = [];
-    doc.querySelectorAll('filament').forEach(el => {
-      const id = parseInt(el.getAttribute('id') || '0');
-      const type = el.getAttribute('type') || el.getAttribute('filament_type') || '';
-      const color = el.getAttribute('color') || '';
-      globalFilaments[id] = { type, color };
-    });
-
-    // Ogni piatto
-    doc.querySelectorAll('plate').forEach(plateEl => {
-      const idx = parseInt(plateEl.getAttribute('index') || plateEl.getAttribute('id') || '0');
-
-      // Tempo di stampa del piatto
-      const ptEl = plateEl.querySelector('print_time');
-      const print_time_min = ptEl ? parseTimeToMinutes(ptEl.getAttribute('value') || ptEl.textContent) : null;
-
-      // Oggetti sul piatto
-      const objects = [];
-      plateEl.querySelectorAll('object').forEach(objEl => {
-        const objId = objEl.getAttribute('id') || objEl.getAttribute('identify_id') || '';
-        const name = objEl.getAttribute('name') || `Oggetto ${objId}`;
-        const filamentId = parseInt(objEl.getAttribute('filament_id') || objEl.getAttribute('extruder') || '0');
-        const usedG = parseFloat(objEl.getAttribute('used_g') || objEl.getAttribute('weight') || '0');
-        const supportG = parseFloat(objEl.getAttribute('support_used_g') || '0');
-        const hasSupport = objEl.getAttribute('support_used') === '1' || supportG > 0;
-
-        const filamentInfo = globalFilaments[filamentId] || {};
-        objects.push({
-          id: objId,
-          name,
-          filament_type: filamentInfo.type || '',
-          filament_color: filamentInfo.color || '',
-          weight_g: usedG > 0 ? usedG : null,
-          has_support: hasSupport,
-          support_weight_g: supportG > 0 ? supportG : null,
-        });
-      });
-
-      // Fallback: se il piatto non ha oggetti, leggi i filamenti usati sul piatto
-      if (objects.length === 0) {
-        plateEl.querySelectorAll('filament').forEach(fil => {
-          const usedG = parseFloat(fil.getAttribute('used_g') || '0');
-          const type = fil.getAttribute('type') || '';
-          const color = fil.getAttribute('color') || '';
-          const id = fil.getAttribute('id') || '';
-          if (usedG > 0) {
-            objects.push({
-              id,
-              name: type || `Materiale ${id}`,
-              filament_type: type,
-              filament_color: color,
-              weight_g: usedG,
-              has_support: false,
-              support_weight_g: null,
-            });
-          }
-        });
+  // ─── 2. Leggi il G-Code embedded per avere dati extra se slice_info è vuota ─
+  if (result.plates.length === 0 || result.plates.every(p => p.print_time_min == null)) {
+    const gcodePaths = fileNames.filter(f => /metadata\/plate_\d+\.gcode$/i.test(f));
+    for (const gp of gcodePaths) {
+      // Leggi solo i primi 8KB per trovare i commenti di intestazione
+      const gcodeChunk = await zip.files[gp].async('string').then(s => s.slice(0, 8000));
+      const gcodeData = parseGcodeHeader(gcodeChunk);
+      if (gcodeData.print_time_min != null || gcodeData.filaments.length > 0) {
+        if (result.slicer === 'unknown' && gcodeData.slicer) result.slicer = gcodeData.slicer;
+        // Aggiorna il piatto corrispondente o crea uno nuovo
+        const plateIdx = result.plates.length; // usa il prossimo indice
+        const existingPlate = result.plates.find(p => p.plate_idx === (gcodePaths.indexOf(gp) + 1));
+        if (existingPlate) {
+          if (existingPlate.print_time_min == null) existingPlate.print_time_min = gcodeData.print_time_min;
+          if (existingPlate.filaments.length === 0) existingPlate.filaments = gcodeData.filaments;
+        } else {
+          result.plates.push({
+            plate_idx: gcodePaths.indexOf(gp) + 1,
+            print_time_min: gcodeData.print_time_min,
+            support_used: false,
+            printer_model: gcodeData.printer_model || '',
+            objects: gcodeData.objects || [],
+            filaments: gcodeData.filaments,
+          });
+        }
       }
-
-      result.plates.push({ plate_idx: idx, print_time_min, objects });
-    });
+    }
   }
 
-  // ─── 2. model_settings.config → arricchisce nomi e supporti ─────────────────
-  if (modelSettingsPath) {
-    const doc = await readXml(modelSettingsPath);
-    const objSettings = {};
-    doc.querySelectorAll('object').forEach(el => {
-      const id = el.getAttribute('id') || el.getAttribute('identify_id') || '';
-      const name = el.getAttribute('name') || '';
-      const hasSupport = el.getAttribute('support_enabled') === '1' || el.getAttribute('enable_support') === '1';
-      objSettings[id] = { name, hasSupport };
-    });
-
-    // Aggiorna i piatti con i dati dei nomi/supporti
-    result.plates.forEach(plate => {
-      plate.objects.forEach(obj => {
-        const s = objSettings[obj.id];
-        if (s) {
-          if (s.name && !obj.name.startsWith('Oggetto')) obj.name = s.name;
-          if (s.hasSupport) obj.has_support = true;
-        }
-      });
-    });
-  }
-
-  // ─── 3. 3dmodel.model → fallback per nomi oggetti ────────────────────────────
-  if (modelPath && result.plates.some(p => p.objects.some(o => !o.name || o.name.startsWith('Oggetto')))) {
-    const doc = await readXml(modelPath);
-    const objectNames = {};
-    doc.querySelectorAll('object').forEach(el => {
-      const id = el.getAttribute('id') || '';
-      const name = el.getAttribute('name') || el.querySelector('metadata[name="name"]')?.getAttribute('value') || '';
-      if (name) objectNames[id] = name;
-    });
-
-    result.plates.forEach(plate => {
-      plate.objects.forEach(obj => {
-        if (objectNames[obj.id] && (!obj.name || obj.name.startsWith('Oggetto'))) {
-          obj.name = objectNames[obj.id];
-        }
-      });
-    });
-  }
-
-  // ─── 4. PRUSASLICER fallback ─────────────────────────────────────────────────
+  // ─── 3. PrusaSlicer fallback (Slic3r_PE.config) ─────────────────────────────
   if (result.plates.length === 0) {
-    const prusaPath = fileNames.find(f =>
-      f.toLowerCase().includes('slic3r_pe') ||
-      f.toLowerCase().includes('prusaslicer') ||
-      (f.toLowerCase().includes('metadata') && f.endsWith('.config') && !f.includes('slice_info') && !f.includes('model_settings'))
-    );
-    if (prusaPath) {
-      const content = await zip.files[prusaPath].async('string');
-      const parsed = parsePrusaFallback(content);
-      if (parsed.slicer) result.slicer = parsed.slicer;
-      if (parsed.weight_g || parsed.print_time_min) {
-        result.plates.push({
-          plate_idx: 1,
-          print_time_min: parsed.print_time_min,
-          objects: [{
-            id: '1',
-            name: result.fileName,
-            filament_type: parsed.filament_type || '',
-            filament_color: '',
-            weight_g: parsed.weight_g,
-            has_support: false,
-            support_weight_g: null,
-          }],
-        });
-      }
+    const prusaConfig = fileNames.find(f => /slic3r_pe\.config$/i.test(f));
+    if (prusaConfig) {
+      const text = await readText(prusaConfig);
+      const data = parsePrusaIni(text);
+      if (data.slicer) result.slicer = data.slicer;
+      result.plates.push({
+        plate_idx: 1,
+        print_time_min: data.print_time_min,
+        support_used: false,
+        printer_model: '',
+        objects: [{ name: result.fileName }],
+        filaments: data.filaments,
+      });
     }
   }
 
-  // ─── 5. Fallback generico sul 3dmodel.model ───────────────────────────────────
-  if (result.plates.length === 0 && modelPath) {
-    const doc = await readXml(modelPath);
-    const plate = { plate_idx: 1, print_time_min: null, objects: [] };
-    doc.querySelectorAll('metadata, meta, property').forEach(el => {
-      const name = (el.getAttribute('name') || el.getAttribute('key') || '').toLowerCase();
-      const value = el.getAttribute('value') || el.textContent || '';
-      if (name.includes('print_time')) plate.print_time_min = parseTimeToMinutes(value);
-      if (name.includes('slicer') || name.includes('generator')) {
-        if (value.toLowerCase().includes('cura')) result.slicer = 'Cura';
-        else result.slicer = value;
+  // ─── 4. Fallback generico: leggi il 3dmodel.model ────────────────────────────
+  if (result.plates.length === 0) {
+    const modelPath = fileNames.find(f => /3dmodel\.model$/i.test(f));
+    if (modelPath) {
+      const xml = await readText(modelPath);
+      const objects = parseModelObjects(xml);
+      if (result.slicer === 'unknown') {
+        if (xml.includes('Cura')) result.slicer = 'Cura';
+        else if (xml.includes('PrusaSlicer')) result.slicer = 'PrusaSlicer';
       }
-    });
-    doc.querySelectorAll('object').forEach(el => {
-      const id = el.getAttribute('id') || '';
-      const name = el.getAttribute('name') || el.querySelector('metadata[name="name"]')?.getAttribute('value') || result.fileName;
-      plate.objects.push({ id, name, filament_type: '', filament_color: '', weight_g: null, has_support: false, support_weight_g: null });
-    });
-    if (plate.objects.length === 0) {
-      plate.objects.push({ id: '1', name: result.fileName, filament_type: '', filament_color: '', weight_g: null, has_support: false, support_weight_g: null });
+      result.plates.push({
+        plate_idx: 1,
+        print_time_min: null,
+        support_used: false,
+        printer_model: '',
+        objects,
+        filaments: [],
+      });
     }
-    result.plates.push(plate);
+  }
+
+  // Fallback minimo
+  if (result.plates.length === 0) {
+    result.plates.push({
+      plate_idx: 1,
+      print_time_min: null,
+      support_used: false,
+      printer_model: '',
+      objects: [{ name: result.fileName }],
+      filaments: [],
+    });
   }
 
   return result;
 }
 
-function parsePrusaFallback(content) {
-  const result = { weight_g: null, print_time_min: null, slicer: null, filament_type: '' };
-  const lines = content.split('\n');
+// ─── PARSER PRINCIPALE: Bambu/Orca slice_info.config ──────────────────────────
+// Struttura XML reale:
+// <config>
+//   <plate>
+//     <metadata key="support_used" value="0"/>
+//     <metadata key="print_time" value="1h54m20s"/>
+//     <object name="ComponentName"/>
+//     <filament id="1" type="PLA" color="#FFF" used_m="28.89" used_g="83.39"/>
+//   </plate>
+//   <plate>...</plate>  (se ci sono più piatti)
+// </config>
+function parseBambuSliceInfoXml(xml, defaultIdx) {
+  const plates = [];
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xml, 'application/xml');
+
+    const plateEls = doc.querySelectorAll('plate');
+
+    if (plateEls.length === 0) {
+      // Struttura flat: tutto è direttamente sotto <config>
+      const plate = parseSinglePlate(doc.documentElement, defaultIdx);
+      plates.push(plate);
+    } else {
+      plateEls.forEach((plateEl, idx) => {
+        // Prova a leggere l'indice dal primo metadata con key="index" o "plate_index"
+        let plateIdx = defaultIdx + idx;
+        plateEl.querySelectorAll('metadata').forEach(m => {
+          const key = (m.getAttribute('key') || '').toLowerCase();
+          if (key === 'index' || key === 'plate_index' || key === 'id') {
+            const v = parseInt(m.getAttribute('value') || '');
+            if (!isNaN(v)) plateIdx = v;
+          }
+        });
+        const plate = parseSinglePlate(plateEl, plateIdx);
+        plates.push(plate);
+      });
+    }
+  } catch (e) {
+    // ignora
+  }
+  return plates;
+}
+
+function parseSinglePlate(el, idx) {
+  const plate = {
+    plate_idx: idx,
+    print_time_min: null,
+    support_used: false,
+    printer_model: '',
+    objects: [],
+    filaments: [],
+  };
+
+  // Leggi metadata
+  el.querySelectorAll('metadata').forEach(m => {
+    const key = (m.getAttribute('key') || '').toLowerCase();
+    const value = m.getAttribute('value') || '';
+    if (key === 'support_used') plate.support_used = value === '1' || value === 'true';
+    if (key === 'print_time' || key === 'estimate_time' || key === 'total_time') {
+      plate.print_time_min = parseTimeToMinutes(value);
+    }
+    if (key === 'printer_model_id' || key === 'printer_model') plate.printer_model = value;
+  });
+
+  // Oggetti
+  el.querySelectorAll('object').forEach(o => {
+    const name = o.getAttribute('name') || o.getAttribute('identify_id') || '';
+    if (name) plate.objects.push({ name });
+  });
+
+  // Filamenti
+  el.querySelectorAll('filament').forEach(f => {
+    const id = f.getAttribute('id') || '';
+    const type = f.getAttribute('type') || f.getAttribute('filament_type') || '';
+    const color = f.getAttribute('color') || '';
+    const used_g = parseFloat(f.getAttribute('used_g') || '0');
+    const used_m = parseFloat(f.getAttribute('used_m') || '0');
+    // Includi solo filamenti effettivamente usati
+    if (used_g > 0 || used_m > 0 || type) {
+      plate.filaments.push({ id, type, color, used_g, used_m });
+    }
+  });
+
+  return plate;
+}
+
+// ─── PARSER G-CODE HEADER (fallback) ─────────────────────────────────────────
+function parseGcodeHeader(text) {
+  const result = { print_time_min: null, slicer: null, filaments: [], objects: [], printer_model: '' };
+  const lines = text.split('\n');
+  const filamentTypes = [];
+  const filamentColors = [];
+  const filamentWeights = [];
+  const filamentLengths = [];
+
   for (const line of lines) {
+    if (!line.startsWith(';')) continue;
+    const content = line.slice(1).trim();
+
+    // Rileva slicer
+    if (/bambu studio/i.test(content)) result.slicer = 'Bambu Studio';
+    else if (/orcaslicer/i.test(content)) result.slicer = 'OrcaSlicer';
+    else if (/prusaslicer/i.test(content)) result.slicer = 'PrusaSlicer';
+    else if (/snapmaker/i.test(content)) result.slicer = 'Snapmaker';
+
+    // Tempo di stampa
+    const timeMatch = content.match(/(?:estimated\s+)?printing\s+time[:\s=]+(.+)/i)
+      || content.match(/print\s*time[:\s=]+(.+)/i)
+      || content.match(/total\s+time[:\s=]+(.+)/i);
+    if (timeMatch && result.print_time_min == null) {
+      result.print_time_min = parseTimeToMinutes(timeMatch[1].trim());
+    }
+
+    // Filament types (possono essere ; separated)
+    const typeMatch = content.match(/^filament_type\s*=\s*(.+)/i);
+    if (typeMatch) {
+      typeMatch[1].split(';').forEach(t => filamentTypes.push(t.trim()));
+    }
+    const colorMatch = content.match(/^filament_colour\s*=\s*(.+)/i)
+      || content.match(/^filament_color\s*=\s*(.+)/i);
+    if (colorMatch) {
+      colorMatch[1].split(';').forEach(c => filamentColors.push(c.trim()));
+    }
+    const weightMatch = content.match(/^filament\s+used\s*\[g\]\s*=\s*(.+)/i)
+      || content.match(/^filament_used_g\s*=\s*(.+)/i);
+    if (weightMatch) {
+      weightMatch[1].split(',').forEach(w => filamentWeights.push(parseFloat(w.trim()) || 0));
+    }
+    const lengthMatch = content.match(/^filament\s+used\s*\[mm\]\s*=\s*(.+)/i)
+      || content.match(/^filament_used_m\s*=\s*(.+)/i);
+    if (lengthMatch) {
+      lengthMatch[1].split(',').forEach(l => filamentLengths.push(parseFloat(l.trim()) || 0));
+    }
+
+    // Printer model
+    const printerMatch = content.match(/^printer_model\s*=\s*(.+)/i)
+      || content.match(/^printer\s+model\s*[:\s=]+(.+)/i);
+    if (printerMatch) result.printer_model = printerMatch[1].trim();
+  }
+
+  // Costruisci array filamenti (solo quelli usati)
+  const count = Math.max(filamentTypes.length, filamentWeights.length);
+  for (let i = 0; i < count; i++) {
+    const used_g = filamentWeights[i] || 0;
+    const used_m = filamentLengths[i] || 0;
+    if (used_g > 0 || filamentTypes[i]) {
+      result.filaments.push({
+        id: String(i + 1),
+        type: filamentTypes[i] || '',
+        color: filamentColors[i] || '',
+        used_g,
+        used_m,
+      });
+    }
+  }
+
+  return result;
+}
+
+// ─── PARSER PrusaSlicer ini ───────────────────────────────────────────────────
+function parsePrusaIni(text) {
+  const result = { print_time_min: null, slicer: null, filaments: [] };
+  const filamentTypes = [];
+  const filamentWeights = [];
+
+  for (const line of text.split('\n')) {
     const [k, ...rest] = line.split('=');
     const key = k.trim().toLowerCase();
     const val = rest.join('=').trim();
-    if (key.includes('slicer') || key.includes('generator')) {
+    if (!val) continue;
+
+    if (key === 'slic3rpe' || key.includes('slicer') || key.includes('generator')) {
       if (val.toLowerCase().includes('prusa')) result.slicer = 'PrusaSlicer';
-      else if (val.toLowerCase().includes('super')) result.slicer = 'SuperSlicer';
       else if (val.toLowerCase().includes('bambu')) result.slicer = 'Bambu Studio';
       else if (val.toLowerCase().includes('orca')) result.slicer = 'OrcaSlicer';
-    }
-    if (key === 'filament_used_g' || key === 'filament_used') {
-      const g = parseFloat(val);
-      if (!isNaN(g) && g > 0) result.weight_g = g;
     }
     if (key === 'estimated_print_time' || key === 'print_time') {
       result.print_time_min = parseTimeToMinutes(val);
     }
-    if (key === 'filament_type') result.filament_type = val;
+    if (key === 'filament_type') {
+      val.split(';').forEach(t => filamentTypes.push(t.trim()));
+    }
+    if (key === 'filament_used_g' || key === 'filament_used') {
+      val.split(',').forEach(w => filamentWeights.push(parseFloat(w) || 0));
+    }
   }
+
+  const count = Math.max(filamentTypes.length, filamentWeights.length);
+  for (let i = 0; i < count; i++) {
+    result.filaments.push({
+      id: String(i + 1),
+      type: filamentTypes[i] || '',
+      color: '',
+      used_g: filamentWeights[i] || 0,
+      used_m: 0,
+    });
+  }
+
   return result;
 }
 
-// Converte stringa tempo in minuti
-// Formati: "1h 23m 45s", "1:23:45", "5040" (secondi), "84.0" (minuti)
+// ─── PARSER model XML → nomi oggetti ─────────────────────────────────────────
+function parseModelObjects(xml) {
+  const objects = [];
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xml, 'application/xml');
+    doc.querySelectorAll('object').forEach(el => {
+      const name = el.getAttribute('name')
+        || el.querySelector('metadata[name="name"]')?.getAttribute('value')
+        || '';
+      if (name) objects.push({ name });
+    });
+  } catch (e) {}
+  return objects;
+}
+
+// ─── UTILITY: converte stringa tempo in minuti ─────────────────────────────────
+// Formati: "1h54m20s", "1h 54m 20s", "1:54:20", "6860" (secondi)
 export function parseTimeToMinutes(str) {
   if (!str) return null;
   str = str.trim();
 
+  // "1h54m20s" o "1h 54m 20s" o "1h54m"
   const hmsMatch = str.match(/(?:(\d+)\s*h)?\s*(?:(\d+)\s*m(?:in)?)?\s*(?:(\d+)\s*s(?:ec)?)?/i);
   if (hmsMatch && (hmsMatch[1] || hmsMatch[2] || hmsMatch[3])) {
     const h = parseInt(hmsMatch[1] || '0');
@@ -260,11 +383,13 @@ export function parseTimeToMinutes(str) {
     if (total > 0) return Math.round(total);
   }
 
+  // "HH:MM:SS"
   const colonMatch = str.match(/^(\d+):(\d{2}):(\d{2})$/);
   if (colonMatch) {
     return Math.round(parseInt(colonMatch[1]) * 60 + parseInt(colonMatch[2]) + parseInt(colonMatch[3]) / 60);
   }
 
+  // Solo numero → assume secondi se > 300
   const num = parseFloat(str);
   if (!isNaN(num) && num > 0) {
     return num > 300 ? Math.round(num / 60) : Math.round(num);
