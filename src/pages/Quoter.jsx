@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Save, Download } from 'lucide-react';
+import { Plus, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import QuoteLineRow from '@/components/quote/QuoteLineRow';
 import QuoteSummary from '@/components/quote/QuoteSummary';
+import ThreeMfUpload from '@/components/quote/ThreeMfUpload';
 import { computeDefaultConfig } from '@/lib/pricingEngine';
 
 const PAYMENT_TERMS = [
@@ -86,6 +87,22 @@ export default function Quoter() {
 
   const validLines = lines.filter(l => l.part_name && l.material_code);
 
+  // Quando arrivano dati dal parser 3MF, aggiunge le righe (o aggiorna l'unica vuota)
+  const handleParsed = (parsedResults) => {
+    const newLines = parsedResults.map(r => ({
+      ...EMPTY_LINE,
+      part_name: r.part_name || '',
+      weight_g: r.weight_g || 0,
+      print_time_min: r.print_time_min || 0,
+    }));
+    setLines(prev => {
+      // Se c'è solo una riga vuota, sostituiscila; altrimenti appendi
+      const hasOnlyEmpty = prev.length === 1 && !prev[0].part_name && !prev[0].material_code;
+      return hasOnlyEmpty ? newLines : [...prev, ...newLines];
+    });
+    toast.success(`${parsedResults.length} file importati`);
+  };
+
   return (
     <div className="p-6 lg:p-8 max-w-full">
       {/* Header */}
@@ -100,6 +117,12 @@ export default function Quoter() {
             Salva
           </Button>
         </div>
+      </div>
+
+      {/* 3MF Upload */}
+      <div className="bg-card rounded-xl border border-border p-5 mb-6">
+        <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Importa da file .3mf</p>
+        <ThreeMfUpload onParsed={handleParsed} />
       </div>
 
       {/* Client Info */}
