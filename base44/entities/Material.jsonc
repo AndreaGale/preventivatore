@@ -1,0 +1,37 @@
+{
+  "name": "Material",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "Codice univoco materiale"
+    },
+    "material_name": {
+      "type": "string",
+      "description": "Nome del materiale (es. PETG, PLA, ASA)"
+    },
+    "brand": {
+      "type": "string"
+    },
+    "color": {
+      "type": "string"
+    },
+    "price_per_spool": {
+      "type": "number",
+      "description": "Prezzo per bobina in \u20ac"
+    },
+    "spool_weight": {
+      "type": "number",
+      "description": "Peso bobina in grammi"
+    },
+    "price_per_gram": {
+      "type": "number",
+      "description": "Prezzo al grammo in \u20ac"
+    }
+  },
+  "required": [
+    "code",
+    "material_name",
+    "price_per_gram"
+  ]
+}

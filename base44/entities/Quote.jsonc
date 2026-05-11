@@ -1,0 +1,68 @@
+{
+  "name": "Quote",
+  "type": "object",
+  "properties": {
+    "quote_number": {
+      "type": "number"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "payment_terms": {
+      "type": "string"
+    },
+    "validity_days": {
+      "type": "number",
+      "default": 30
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "bozza",
+        "inviato",
+        "accettato",
+        "rifiutato"
+      ],
+      "default": "bozza"
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "part_name": {
+            "type": "string"
+          },
+          "material_code": {
+            "type": "string"
+          },
+          "weight_g": {
+            "type": "number"
+          },
+          "print_time_min": {
+            "type": "number"
+          },
+          "labor_time_min": {
+            "type": "number"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "manual_price": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "client_name"
+  ]
+}

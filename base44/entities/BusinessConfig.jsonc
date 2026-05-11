@@ -1,0 +1,52 @@
+{
+  "name": "BusinessConfig",
+  "type": "object",
+  "properties": {
+    "monthly_fixed_costs": {
+      "type": "number",
+      "description": "Costi fissi mensili in \u20ac"
+    },
+    "working_days_per_month": {
+      "type": "number"
+    },
+    "hours_per_day": {
+      "type": "number"
+    },
+    "num_printers": {
+      "type": "number"
+    },
+    "farm_efficiency": {
+      "type": "number",
+      "description": "Percentuale efficienza (0-1)"
+    },
+    "printer_cost": {
+      "type": "number",
+      "description": "Costo acquisto stampante media"
+    },
+    "printer_lifespan_years": {
+      "type": "number"
+    },
+    "maintenance_cost_per_hour": {
+      "type": "number"
+    },
+    "power_consumption_kw": {
+      "type": "number"
+    },
+    "energy_cost_per_kwh": {
+      "type": "number"
+    },
+    "monthly_gross_salary": {
+      "type": "number"
+    },
+    "monthly_work_hours": {
+      "type": "number"
+    },
+    "fail_rate": {
+      "type": "number",
+      "description": "Percentuale fail rate (0-1)"
+    }
+  },
+  "required": [
+    "monthly_fixed_costs"
+  ]
+}
