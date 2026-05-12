@@ -91,6 +91,28 @@ export default function RequestQuote() {
     }
     setLoading(true);
     await base44.entities.QuoteRequest.create({ ...form, components, status: 'nuova' });
+
+    // Notifica email interna
+    const componentsSummary = components.map((c, i) =>
+      `Componente ${i + 1}: ${c.file_name || 'N/D'} | Materiale: ${c.material_code || 'N/D'} | Qtà: ${c.quantity} | Qualità: ${c.quality} | Performance: ${c.performance}${c.notes ? ` | Note: ${c.notes}` : ''}`
+    ).join('\n');
+
+    await base44.integrations.Core.SendEmail({
+      to: 'info@3dprice.it',
+      subject: `[Nuovo Preventivo] ${form.first_name} ${form.last_name}${form.company ? ` — ${form.company}` : ''}`,
+      body: `Nuova richiesta di preventivo ricevuta.\n\n` +
+        `CONTATTO\n` +
+        `Nome: ${form.first_name} ${form.last_name}\n` +
+        `Email: ${form.email}\n` +
+        `Telefono: ${form.phone || 'N/D'}\n` +
+        `Azienda: ${form.company || 'N/D'}\n` +
+        `P.IVA: ${form.vat_number || 'N/D'}\n` +
+        `Indirizzo: ${form.address || 'N/D'}\n\n` +
+        `COMPONENTI\n${componentsSummary}\n\n` +
+        `${form.general_notes ? `NOTE GENERALI\n${form.general_notes}\n\n` : ''}` +
+        `Accedi al gestionale per visualizzare i file caricati e rispondere.`,
+    });
+
     setLoading(false);
     setSubmitted(true);
   };
