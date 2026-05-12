@@ -4,16 +4,70 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Trash2, Download } from 'lucide-react';
+import { Plus, Search, Trash2, Download, RefreshCw } from 'lucide-react';
 import { downloadMaterialTemplate } from '@/lib/exportMaterialTemplate';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1l06n8BLvqUyaXri4nTedsNoNu6cTAWyC8ypiC1cNr_U/export?format=csv&gid=894477155';
+
+function parseEuro(val) {
+  if (!val) return 0;
+  return parseFloat(String(val).replace('€', '').replace(',', '.').trim()) || 0;
+}
+
+async function syncFromSheet(existingMaterials, createFn, updateFn) {
+  const res = await fetch(SHEET_CSV_URL);
+  const text = await res.text();
+  const lines = text.trim().split('\n');
+  // Skip header row
+  const rows = lines.slice(1);
+  
+  let created = 0, updated = 0, skipped = 0;
+  
+  for (const row of rows) {
+    // CSV parse (handles quoted fields)
+    const cols = row.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || row.split(',');
+    const clean = cols.map(c => c.replace(/^"|"$/g, '').trim());
+    
+    const code = clean[0];
+    const material_name = clean[1];
+    const brand = clean[2];
+    const color = clean[3];
+    const price_per_spool = parseEuro(clean[4]);
+    const spool_weight = parseFloat(clean[5]) || 1000;
+    const price_per_gram = parseEuro(clean[6]);
+    
+    if (!code || code === 'N/A' || !material_name || material_name === 'N/A') {
+      skipped++;
+      continue;
+    }
+    
+    const existing = existingMaterials.find(m => m.code === code);
+    const data = { code, material_name, brand, color, price_per_spool, spool_weight, price_per_gram };
+    
+    if (existing) {
+      if (existing.price_per_gram !== price_per_gram || existing.price_per_spool !== price_per_spool) {
+        await updateFn(existing.id, data);
+        updated++;
+      } else {
+        skipped++;
+      }
+    } else {
+      await createFn(data);
+      created++;
+    }
+  }
+  
+  return { created, updated, skipped };
+}
+
 export default function Materials() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [newMat, setNewMat] = useState({ code: '', material_name: '', brand: '', color: '', price_per_spool: 0, spool_weight: 1000, price_per_gram: 0 });
 
   const { data: materials = [], isLoading } = useQuery({
@@ -45,6 +99,18 @@ export default function Materials() {
     return m.material_name?.toLowerCase().includes(q) || m.brand?.toLowerCase().includes(q) || m.color?.toLowerCase().includes(q);
   });
 
+  const handleSync = async () => {
+    setSyncing(true);
+    const { created, updated, skipped } = await syncFromSheet(
+      materials,
+      (data) => base44.entities.Material.create(data),
+      (id, data) => base44.entities.Material.update(id, data)
+    );
+    queryClient.invalidateQueries({ queryKey: ['materials'] });
+    setSyncing(false);
+    toast.success(`Sync completato: ${created} aggiunti, ${updated} aggiornati, ${skipped} invariati`);
+  };
+
   const handleSpoolChange = (field, value) => {
     const updated = { ...newMat, [field]: value };
     if (field === 'price_per_spool' || field === 'spool_weight') {
@@ -64,6 +130,10 @@ export default function Materials() {
           <Button variant="outline" onClick={downloadMaterialTemplate} className="gap-2">
             <Download className="w-4 h-4" />
             Template Excel
+          </Button>
+          <Button variant="outline" onClick={handleSync} disabled={syncing} className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Sincronizzazione...' : 'Sync Google Sheets'}
           </Button>
           <Button onClick={() => setShowAdd(true)} className="gap-2">
             <Plus className="w-4 h-4" />
