@@ -12,6 +12,7 @@ import QuoteLineRow from '@/components/quote/QuoteLineRow';
 import QuoteSummary from '@/components/quote/QuoteSummary';
 import ThreeMfUpload from '@/components/quote/ThreeMfUpload';
 import { computeDefaultConfig, computeMaterialTotals } from '@/lib/pricingEngine';
+import { useNavigate } from 'react-router-dom';
 
 const PAYMENT_TERMS = [
   'DATA FATTURA FINE MESE',
@@ -33,9 +34,14 @@ const EMPTY_LINE = {
 
 export default function Quoter() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const urlParams = new URLSearchParams(window.location.search);
+  const editId = urlParams.get('id');
+
   const [clientName, setClientName] = useState('');
   const [paymentTerms, setPaymentTerms] = useState(PAYMENT_TERMS[0]);
   const [lines, setLines] = useState([{ ...EMPTY_LINE }]);
+  const [quoteDate, setQuoteDate] = useState(new Date().toISOString().split('T')[0]);
 
   const { data: materials = [] } = useQuery({
     queryKey: ['materials'],
@@ -49,10 +55,29 @@ export default function Quoter() {
 
   const config = configs.length > 0 ? configs[0] : computeDefaultConfig();
 
+  // Carica preventivo esistente se c'è un id nell'URL
+  const { data: existingQuote } = useQuery({
+    queryKey: ['quote', editId],
+    queryFn: () => base44.entities.Quote.filter({ id: editId }),
+    enabled: !!editId,
+  });
+
+  useEffect(() => {
+    if (existingQuote && existingQuote.length > 0) {
+      const q = existingQuote[0];
+      setClientName(q.client_name || '');
+      setPaymentTerms(q.payment_terms || PAYMENT_TERMS[0]);
+      setQuoteDate(q.date || new Date().toISOString().split('T')[0]);
+      setLines(q.lines && q.lines.length > 0 ? q.lines : [{ ...EMPTY_LINE }]);
+    }
+  }, [existingQuote]);
+
   const saveMutation = useMutation({
-    mutationFn: (data) => base44.entities.Quote.create(data),
+    mutationFn: (data) => editId
+      ? base44.entities.Quote.update(editId, data)
+      : base44.entities.Quote.create(data),
     onSuccess: () => {
-      toast.success('Preventivo salvato!');
+      toast.success(editId ? 'Preventivo aggiornato!' : 'Preventivo salvato!');
       queryClient.invalidateQueries({ queryKey: ['quotes'] });
     },
   });
@@ -79,7 +104,7 @@ export default function Quoter() {
     }
     saveMutation.mutate({
       client_name: clientName,
-      date: new Date().toISOString().split('T')[0],
+      date: quoteDate,
       payment_terms: paymentTerms,
       lines: lines.filter(l => l.part_name),
       status: 'bozza',
@@ -158,11 +183,13 @@ export default function Quoter() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Nuovo Preventivo</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            {editId ? `Preventivo — ${clientName || '...'}` : 'Nuovo Preventivo'}
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">Calcola il prezzo di vendita dei tuoi prodotti 3D</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => generateQuotePdf({ clientName, paymentTerms, date: new Date().toISOString().split('T')[0], lines, materials, config })} className="gap-2">
+          <Button variant="outline" onClick={() => generateQuotePdf({ clientName, paymentTerms, date: quoteDate, lines, materials, config })} className="gap-2">
             <FileDown className="w-4 h-4" />
             Esporta PDF
           </Button>
@@ -195,9 +222,9 @@ export default function Quoter() {
             <Label className="text-xs font-medium text-muted-foreground mb-1.5 block">Data</Label>
             <Input
               type="date"
-              value={new Date().toISOString().split('T')[0]}
-              readOnly
-              className="h-9 bg-muted"
+              value={quoteDate}
+              onChange={e => setQuoteDate(e.target.value)}
+              className="h-9"
             />
           </div>
           <div>

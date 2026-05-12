@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trash2, FileText, Plus } from 'lucide-react';
+import { Trash2, FileText, Plus, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -79,6 +79,12 @@ export default function Quotes() {
                 <Badge className={STATUS_COLORS[q.status] || STATUS_COLORS.bozza}>
                   {q.status || 'bozza'}
                 </Badge>
+                <Link to={`/?id=${q.id}`}>
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Apri
+                  </Button>
+                </Link>
                 <Button
                   variant="ghost"
                   size="icon"
