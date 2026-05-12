@@ -16,17 +16,34 @@
     "color": {
       "type": "string"
     },
-    "price_per_spool": {
-      "type": "number",
-      "description": "Prezzo per bobina in \u20ac"
-    },
     "spool_weight": {
       "type": "number",
       "description": "Peso bobina in grammi"
     },
+    "price_tiers": {
+      "type": "array",
+      "description": "Scaglioni di prezzo: lista ordinata per quantit\u00e0 crescente",
+      "items": {
+        "type": "object",
+        "properties": {
+          "min_spools": {
+            "type": "number",
+            "description": "Numero minimo di bobine per avere questo prezzo"
+          },
+          "price_per_spool": {
+            "type": "number",
+            "description": "Prezzo per bobina a questo scaglione (\u20ac)"
+          },
+          "price_per_gram": {
+            "type": "number",
+            "description": "Prezzo al grammo a questo scaglione (\u20ac)"
+          }
+        }
+      }
+    },
     "price_per_gram": {
       "type": "number",
-      "description": "Prezzo al grammo in \u20ac"
+      "description": "Prezzo al grammo di default (scaglione 1 bobina) in \u20ac"
     }
   },
   "required": [

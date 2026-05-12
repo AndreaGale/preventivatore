@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Trash2, Upload } from 'lucide-react';
+import { Plus, Search, Trash2, Download } from 'lucide-react';
+import { downloadMaterialTemplate } from '@/lib/exportMaterialTemplate';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -59,10 +60,16 @@ export default function Materials() {
           <h1 className="text-2xl font-bold tracking-tight">Database Materiali</h1>
           <p className="text-sm text-muted-foreground mt-1">{materials.length} materiali registrati</p>
         </div>
-        <Button onClick={() => setShowAdd(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Aggiungi Materiale
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={downloadMaterialTemplate} className="gap-2">
+            <Download className="w-4 h-4" />
+            Template Excel
+          </Button>
+          <Button onClick={() => setShowAdd(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Aggiungi Materiale
+          </Button>
+        </div>
       </div>
 
       <div className="relative mb-6 max-w-sm">
