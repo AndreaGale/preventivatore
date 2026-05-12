@@ -22,35 +22,19 @@ function setFont(doc, size, style = 'normal', color = C.dark) {
   doc.setTextColor(...color);
 }
 
+function drawTriangle(doc, x1, y1, x2, y2, x3, y3, style = 'F') {
+  doc.lines([[x2 - x1, y2 - y1], [x3 - x2, y3 - y2], [x1 - x3, y1 - y3]], x1, y1, [1, 1], style, true);
+}
+
 function drawLogo(doc, x, y, size = 10) {
-  // Icona stilizzata: cubo 3D + testo "3D Price"
   const s = size;
-  // Faccia frontale
   doc.setFillColor(...C.primary);
   doc.rect(x, y, s * 0.8, s * 0.8, 'F');
-  // Faccia superiore
   doc.setFillColor(...C.primaryDark);
-  doc.triangle(
-    x, y,
-    x + s * 0.8, y,
-    x + s * 1.1, y - s * 0.3,
-    'F'
-  );
-  // Faccia laterale
+  drawTriangle(doc, x, y, x + s * 0.8, y, x + s * 1.1, y - s * 0.3);
   doc.setFillColor(180, 70, 15);
-  doc.triangle(
-    x + s * 0.8, y,
-    x + s * 1.1, y - s * 0.3,
-    x + s * 1.1, y + s * 0.5,
-    'F'
-  );
-  doc.triangle(
-    x + s * 0.8, y,
-    x + s * 0.8, y + s * 0.8,
-    x + s * 1.1, y + s * 0.5,
-    'F'
-  );
-  // Testo logo
+  drawTriangle(doc, x + s * 0.8, y, x + s * 1.1, y - s * 0.3, x + s * 1.1, y + s * 0.5);
+  drawTriangle(doc, x + s * 0.8, y, x + s * 0.8, y + s * 0.8, x + s * 1.1, y + s * 0.5);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(size * 1.4);
   doc.setTextColor(...C.dark);
@@ -86,10 +70,10 @@ function drawCoverPage(doc, { clientName, paymentTerms, date, lines, materials, 
   // Cubo stilizzato bianco
   doc.rect(lx, ly, ls * 0.8, ls * 0.8, 'F');
   doc.setFillColor(255, 200, 160);
-  doc.triangle(lx, ly, lx + ls * 0.8, ly, lx + ls * 1.1, ly - ls * 0.3, 'F');
+  drawTriangle(doc, lx, ly, lx + ls * 0.8, ly, lx + ls * 1.1, ly - ls * 0.3);
   doc.setFillColor(255, 170, 120);
-  doc.triangle(lx + ls * 0.8, ly, lx + ls * 1.1, ly - ls * 0.3, lx + ls * 1.1, ly + ls * 0.5, 'F');
-  doc.triangle(lx + ls * 0.8, ly, lx + ls * 0.8, ly + ls * 0.8, lx + ls * 1.1, ly + ls * 0.5, 'F');
+  drawTriangle(doc, lx + ls * 0.8, ly, lx + ls * 1.1, ly - ls * 0.3, lx + ls * 1.1, ly + ls * 0.5);
+  drawTriangle(doc, lx + ls * 0.8, ly, lx + ls * 0.8, ly + ls * 0.8, lx + ls * 1.1, ly + ls * 0.5);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(255, 255, 255);
