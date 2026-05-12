@@ -44,10 +44,12 @@ export default function RequestQuote() {
   const [components, setComponents] = useState([{ ...EMPTY_COMPONENT }]);
   const [uploadingIdx, setUploadingIdx] = useState(null);
 
-  const { data: materials = [] } = useQuery({
+  const { data: allMaterials = [] } = useQuery({
     queryKey: ['materials-public'],
     queryFn: () => base44.entities.Material.list('-created_date', 200),
   });
+  // Solo materiali visibili ai clienti
+  const materials = allMaterials.filter(m => m.visible_clients);
 
   const updateForm = (field, value) => setForm(f => ({ ...f, [field]: value }));
 
@@ -204,7 +206,7 @@ export default function RequestQuote() {
                       <SelectContent>
                         {materials.map(m => (
                           <SelectItem key={m.code} value={m.code} className="text-xs">
-                            {m.material_name} {m.brand ? `— ${m.brand}` : ''} {m.color ? `(${m.color})` : ''}
+                            {m.material_name}{m.color ? ` (${m.color})` : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>

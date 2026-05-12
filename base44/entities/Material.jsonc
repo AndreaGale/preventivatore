@@ -44,6 +44,16 @@
     "price_per_gram": {
       "type": "number",
       "description": "Prezzo al grammo di default (scaglione 1 bobina) in \u20ac"
+    },
+    "visible_partners": {
+      "type": "boolean",
+      "description": "Visibile nel modulo partner",
+      "default": false
+    },
+    "visible_clients": {
+      "type": "boolean",
+      "description": "Visibile nel modulo clienti",
+      "default": false
     }
   },
   "required": [
