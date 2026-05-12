@@ -14,7 +14,7 @@ import Quotes from '@/pages/Quotes';
 import RequestQuote from '@/pages/RequestQuote';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, isAuthenticated } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, isAuthenticated, user } = useAuth();
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -35,13 +35,22 @@ const AuthenticatedApp = () => {
     }
   }
 
-  // Se l'app è pubblica ma l'utente non è autenticato, forza il login
+  // Se non autenticato, forza il login
   if (!isAuthenticated) {
     navigateToLogin();
     return null;
   }
 
-  // Render the main app
+  // Clienti e partner (ruolo 'user') → solo pagina richiesta preventivo
+  if (user?.role === 'user') {
+    return (
+      <Routes>
+        <Route path="*" element={<RequestQuote />} />
+      </Routes>
+    );
+  }
+
+  // Admin → pannello completo
   return (
     <Routes>
       <Route element={<AppLayout />}>
