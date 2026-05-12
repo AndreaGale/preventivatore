@@ -30,7 +30,7 @@ async function syncFromSheet(existingMaterials, createFn, updateFn, deleteFn) {
     const cols = row.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || row.split(',');
     const clean = cols.map(c => c.replace(/^"|"$/g, '').trim());
 
-    // Colonne: [0]=visible_partners [1]=visible_clients [2]=code [3]=material_name [4]=brand [5]=color [6]=spool_weight [7]=min_spools [8]=price_per_spool [9]=price_per_gram
+    // Colonne: [0]=visible_partners [1]=visible_clients [2]=code [3]=material_name [4]=brand [5]=color [6]=spool_weight [7]=min_spools [8]=price_per_spool [9]=price_per_gram [10]=datasheet_url
     const visible_partners = clean[0]?.toUpperCase() === 'TRUE';
     const visible_clients = clean[1]?.toUpperCase() === 'TRUE';
     const code = clean[2];
@@ -41,11 +41,12 @@ async function syncFromSheet(existingMaterials, createFn, updateFn, deleteFn) {
     const min_spools = parseFloat(clean[7]) || 1;
     const price_per_spool = parseEuro(clean[8]);
     const price_per_gram = parseFloat(String(clean[9]).replace(',', '.')) || (spool_weight > 0 ? price_per_spool / spool_weight : 0);
+    const datasheet_url = clean[10] || '';
 
     if (!code || !material_name) continue;
 
     if (!byCode[code]) {
-      byCode[code] = { code, material_name, brand, color, spool_weight, visible_partners, visible_clients, price_tiers: [] };
+      byCode[code] = { code, material_name, brand, color, spool_weight, visible_partners, visible_clients, datasheet_url, price_tiers: [] };
     }
     byCode[code].price_tiers.push({ min_spools, price_per_spool, price_per_gram });
   }

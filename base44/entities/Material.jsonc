@@ -54,6 +54,10 @@
       "type": "boolean",
       "description": "Visibile nel modulo clienti",
       "default": false
+    },
+    "datasheet_url": {
+      "type": "string",
+      "description": "Link alla cartella Google Drive con le schede tecniche del filamento"
     }
   },
   "required": [
