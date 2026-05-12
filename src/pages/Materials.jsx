@@ -23,42 +23,47 @@ async function syncFromSheet(existingMaterials, createFn, updateFn, deleteFn) {
   const lines = text.trim().split('\n');
   // Skip header row
   const rows = lines.slice(1);
-  
-  let created = 0, updated = 0, skipped = 0;
-  
-  const sheetCodes = new Set();
 
+  // Raggruppa righe per codice (più righe = scaglioni prezzo)
+  const byCode = {};
   for (const row of rows) {
-    // CSV parse (handles quoted fields)
     const cols = row.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || row.split(',');
     const clean = cols.map(c => c.replace(/^"|"$/g, '').trim());
-    
+
     const code = clean[0];
     const material_name = clean[1];
     const brand = clean[2];
     const color = clean[3];
-    const price_per_spool = parseEuro(clean[4]);
-    const spool_weight = parseFloat(clean[5]) || 1000;
-    const price_per_gram = parseEuro(clean[6]);
-    
-    if (!code || code === 'N/A' || !material_name || material_name === 'N/A') {
-      skipped++;
-      continue;
+    const spool_weight = parseFloat(clean[4]) || 1000;
+    const min_spools = parseFloat(clean[5]) || 1;
+    const price_per_spool = parseEuro(clean[6]);
+    const price_per_gram = parseFloat(String(clean[7]).replace(',', '.')) || (spool_weight > 0 ? price_per_spool / spool_weight : 0);
+
+    if (!code || !material_name) continue;
+
+    if (!byCode[code]) {
+      byCode[code] = { code, material_name, brand, color, spool_weight, price_tiers: [] };
     }
-    
-    sheetCodes.add(code);
+    byCode[code].price_tiers.push({ min_spools, price_per_spool, price_per_gram });
+  }
+
+  // Per ogni materiale, ordina scaglioni e calcola price_per_gram default (scaglione 1)
+  const sheetCodes = new Set(Object.keys(byCode));
+  let created = 0, updated = 0, skipped = 0;
+
+  for (const code of sheetCodes) {
+    const mat = byCode[code];
+    mat.price_tiers.sort((a, b) => a.min_spools - b.min_spools);
+    const tier1 = mat.price_tiers[0];
+    mat.price_per_gram = tier1?.price_per_gram || 0;
+    mat.price_per_spool = tier1?.price_per_spool || 0;
+
     const existing = existingMaterials.find(m => m.code === code);
-    const data = { code, material_name, brand, color, price_per_spool, spool_weight, price_per_gram };
-    
     if (existing) {
-      if (existing.price_per_gram !== price_per_gram || existing.price_per_spool !== price_per_spool) {
-        await updateFn(existing.id, data);
-        updated++;
-      } else {
-        skipped++;
-      }
+      await updateFn(existing.id, mat);
+      updated++;
     } else {
-      await createFn(data);
+      await createFn(mat);
       created++;
     }
   }
@@ -71,7 +76,7 @@ async function syncFromSheet(existingMaterials, createFn, updateFn, deleteFn) {
       deleted++;
     }
   }
-  
+
   return { created, updated, skipped, deleted };
 }
 
