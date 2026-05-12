@@ -5,13 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Save, FileDown } from 'lucide-react';
+import { Plus, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import QuoteLineRow from '@/components/quote/QuoteLineRow';
 import QuoteSummary from '@/components/quote/QuoteSummary';
 import ThreeMfUpload from '@/components/quote/ThreeMfUpload';
 import { computeDefaultConfig } from '@/lib/pricingEngine';
-import { generateQuotePdf } from '@/lib/generateQuotePdf';
 
 const PAYMENT_TERMS = [
   'DATA FATTURA FINE MESE',
@@ -146,20 +145,6 @@ export default function Quoter() {
           <p className="text-sm text-muted-foreground mt-1">Calcola il prezzo di vendita dei tuoi prodotti 3D</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => {
-            if (!clientName.trim()) { toast.error('Inserisci il nome del cliente'); return; }
-            generateQuotePdf({
-              clientName,
-              paymentTerms,
-              date: new Date().toISOString().split('T')[0],
-              lines: lines.filter(l => l.part_name),
-              materials,
-              config,
-            });
-          }}>
-            <FileDown className="w-4 h-4" />
-            Esporta PDF
-          </Button>
           <Button onClick={handleSave} className="gap-2">
             <Save className="w-4 h-4" />
             Salva
