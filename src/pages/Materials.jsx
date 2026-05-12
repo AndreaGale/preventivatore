@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
-const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1l06n8BLvqUyaXri4nTedsNoNu6cTAWyC8ypiC1cNr_U/export?format=csv&gid=894477155';
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1l06n8BLvqUyaXri4nTedsNoNu6cTAWyC8ypiC1cNr_U/export?format=csv&gid=1973544283';
 
 function parseEuro(val) {
   if (!val) return 0;
