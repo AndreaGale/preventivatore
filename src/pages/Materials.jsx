@@ -17,7 +17,7 @@ function parseEuro(val) {
   return parseFloat(String(val).replace('€', '').replace(',', '.').trim()) || 0;
 }
 
-async function syncFromSheet(existingMaterials, createFn, updateFn) {
+async function syncFromSheet(existingMaterials, createFn, updateFn, deleteFn) {
   const res = await fetch(SHEET_CSV_URL);
   const text = await res.text();
   const lines = text.trim().split('\n');
@@ -26,6 +26,8 @@ async function syncFromSheet(existingMaterials, createFn, updateFn) {
   
   let created = 0, updated = 0, skipped = 0;
   
+  const sheetCodes = new Set();
+
   for (const row of rows) {
     // CSV parse (handles quoted fields)
     const cols = row.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || row.split(',');
@@ -44,6 +46,7 @@ async function syncFromSheet(existingMaterials, createFn, updateFn) {
       continue;
     }
     
+    sheetCodes.add(code);
     const existing = existingMaterials.find(m => m.code === code);
     const data = { code, material_name, brand, color, price_per_spool, spool_weight, price_per_gram };
     
@@ -59,8 +62,17 @@ async function syncFromSheet(existingMaterials, createFn, updateFn) {
       created++;
     }
   }
+
+  // Elimina materiali non presenti nello sheet
+  let deleted = 0;
+  for (const m of existingMaterials) {
+    if (!sheetCodes.has(m.code)) {
+      await deleteFn(m.id);
+      deleted++;
+    }
+  }
   
-  return { created, updated, skipped };
+  return { created, updated, skipped, deleted };
 }
 
 export default function Materials() {
@@ -101,14 +113,15 @@ export default function Materials() {
 
   const handleSync = async () => {
     setSyncing(true);
-    const { created, updated, skipped } = await syncFromSheet(
+    const { created, updated, skipped, deleted } = await syncFromSheet(
       materials,
       (data) => base44.entities.Material.create(data),
-      (id, data) => base44.entities.Material.update(id, data)
+      (id, data) => base44.entities.Material.update(id, data),
+      (id) => base44.entities.Material.delete(id)
     );
     queryClient.invalidateQueries({ queryKey: ['materials'] });
     setSyncing(false);
-    toast.success(`Sync completato: ${created} aggiunti, ${updated} aggiornati, ${skipped} invariati`);
+    toast.success(`Sync completato: ${created} aggiunti, ${updated} aggiornati, ${deleted} eliminati, ${skipped} invariati`);
   };
 
   const handleSpoolChange = (field, value) => {
