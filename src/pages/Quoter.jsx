@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Save } from 'lucide-react';
+import { Plus, Save, FileDown } from 'lucide-react';
+import { generateQuotePdf } from '@/lib/generateQuotePdf';
 import { toast } from 'sonner';
 import QuoteLineRow from '@/components/quote/QuoteLineRow';
 import QuoteSummary from '@/components/quote/QuoteSummary';
@@ -146,6 +147,10 @@ export default function Quoter() {
           <p className="text-sm text-muted-foreground mt-1">Calcola il prezzo di vendita dei tuoi prodotti 3D</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => generateQuotePdf({ clientName, paymentTerms, date: new Date().toISOString().split('T')[0], lines, materials, config })} className="gap-2">
+            <FileDown className="w-4 h-4" />
+            Esporta PDF
+          </Button>
           <Button onClick={handleSave} className="gap-2">
             <Save className="w-4 h-4" />
             Salva
