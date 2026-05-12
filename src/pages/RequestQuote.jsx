@@ -98,7 +98,7 @@ export default function RequestQuote() {
     ).join('\n');
 
     await base44.integrations.Core.SendEmail({
-      to: 'info@3dprice.it',
+      to: 'info@3dshapefarm.com',
       subject: `[Nuovo Preventivo] ${form.first_name} ${form.last_name}${form.company ? ` — ${form.company}` : ''}`,
       body: `Nuova richiesta di preventivo ricevuta.\n\n` +
         `CONTATTO\n` +
