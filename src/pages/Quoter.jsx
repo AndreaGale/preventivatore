@@ -89,17 +89,32 @@ export default function Quoter() {
   const validLines = lines.filter(l => l.part_name && l.material_code);
   const materialTotals = computeMaterialTotals(lines);
 
-  // Cerca il miglior materiale corrispondente al tipo filamento (es. "PLA", "PETG")
+  // Cerca il miglior materiale corrispondente al tipo filamento con logica fuzzy a token
   const autoMatchMaterial = (filamentType) => {
     if (!filamentType || materials.length === 0) return '';
     const ft = filamentType.toLowerCase().trim();
-    // Match esatto sul material_name
-    const exact = materials.find(m => m.material_name?.toLowerCase() === ft);
-    if (exact) return exact.code;
-    // Match parziale: il nome del materiale contiene il tipo filamento
-    const partial = materials.find(m => m.material_name?.toLowerCase().includes(ft));
-    if (partial) return partial.code;
-    return '';
+    const tokens = ft.split(/[\s\-_]+/).filter(Boolean);
+
+    const score = (m) => {
+      const fields = [
+        m.material_name?.toLowerCase() || '',
+        m.brand?.toLowerCase() || '',
+        m.color?.toLowerCase() || '',
+        m.code?.toLowerCase() || '',
+      ];
+      const all = fields.join(' ');
+      if (fields.some(f => f === ft)) return 1000; // match esatto
+      if (fields.some(f => f.includes(ft))) return 100; // substring esatta
+      // conta quanti token combaciano
+      return tokens.filter(t => all.includes(t)).length;
+    };
+
+    const best = materials
+      .map(m => ({ m, s: score(m) }))
+      .filter(({ s }) => s > 0)
+      .sort((a, b) => b.s - a.s)[0];
+
+    return best ? best.m.code : '';
   };
 
   // Quando arrivano righe dal parser 3MF, le aggiunge (o sostituisce la riga vuota iniziale)

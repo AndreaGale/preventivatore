@@ -19,13 +19,29 @@ export default function MaterialSelector({ materials, value, onChange, hint }) {
 
   const filtered = useMemo(() => {
     if (!search) return materials;
-    const q = search.toLowerCase();
-    return materials.filter(m =>
-      m.material_name?.toLowerCase().includes(q) ||
-      m.brand?.toLowerCase().includes(q) ||
-      m.color?.toLowerCase().includes(q) ||
-      m.code?.toLowerCase().includes(q)
-    );
+    const q = search.toLowerCase().trim();
+    const tokens = q.split(/[\s\-_]+/).filter(Boolean);
+
+    const score = (m) => {
+      const fields = [
+        m.material_name?.toLowerCase() || '',
+        m.brand?.toLowerCase() || '',
+        m.color?.toLowerCase() || '',
+        m.code?.toLowerCase() || '',
+      ];
+      const all = fields.join(' ');
+      // Exact substring match on any field = highest score
+      if (fields.some(f => f.includes(q))) return 100;
+      // All tokens present somewhere = good score
+      const matchedTokens = tokens.filter(t => all.includes(t));
+      return matchedTokens.length;
+    };
+
+    return materials
+      .map(m => ({ m, s: score(m) }))
+      .filter(({ s }) => s > 0)
+      .sort((a, b) => b.s - a.s)
+      .map(({ m }) => m);
   }, [materials, search]);
 
   return (
