@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Save, FileDown } from 'lucide-react';
+import { Plus, FileDown, FilePlus, CheckCircle2 } from 'lucide-react';
 import { generateQuotePdf } from '@/lib/generateQuotePdf';
 import { toast } from 'sonner';
 import QuoteLineRow from '@/components/quote/QuoteLineRow';
@@ -13,6 +13,7 @@ import QuoteSummary from '@/components/quote/QuoteSummary';
 import ThreeMfUpload from '@/components/quote/ThreeMfUpload';
 import { computeDefaultConfig, computeMaterialTotals } from '@/lib/pricingEngine';
 import { useNavigate } from 'react-router-dom';
+import { useRef } from 'react';
 
 const PAYMENT_TERMS = [
   'DATA FATTURA FINE MESE',
@@ -42,6 +43,9 @@ export default function Quoter() {
   const [paymentTerms, setPaymentTerms] = useState(PAYMENT_TERMS[0]);
   const [lines, setLines] = useState([{ ...EMPTY_LINE }]);
   const [quoteDate, setQuoteDate] = useState(new Date().toISOString().split('T')[0]);
+  const [autoSaved, setAutoSaved] = useState(false);
+  const autoSaveTimer = useRef(null);
+  const currentIdRef = useRef(editId); // traccia l'id corrente (utile dopo primo salvataggio auto)
 
   const { data: materials = [] } = useQuery({
     queryKey: ['materials'],
@@ -73,42 +77,63 @@ export default function Quoter() {
   }, [existingQuote]);
 
   const saveMutation = useMutation({
-    mutationFn: (data) => editId
-      ? base44.entities.Quote.update(editId, data)
+    mutationFn: (data) => currentIdRef.current
+      ? base44.entities.Quote.update(currentIdRef.current, data)
       : base44.entities.Quote.create(data),
-    onSuccess: () => {
-      toast.success(editId ? 'Preventivo aggiornato!' : 'Preventivo salvato!');
+    onSuccess: (result) => {
+      // Se era un create, aggiorna l'URL e il ref senza ricaricare
+      if (!currentIdRef.current && result?.id) {
+        currentIdRef.current = result.id;
+        window.history.replaceState(null, '', `/?id=${result.id}`);
+      }
+      setAutoSaved(true);
+      setTimeout(() => setAutoSaved(false), 2000);
       queryClient.invalidateQueries({ queryKey: ['quotes'] });
     },
   });
+
+  // Autosave con debounce 1.5s, solo se c'è almeno il nome cliente
+  const scheduleAutoSave = (data) => {
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      if (data.clientName.trim()) {
+        saveMutation.mutate({
+          client_name: data.clientName,
+          date: data.quoteDate,
+          payment_terms: data.paymentTerms,
+          lines: data.lines.filter(l => l.part_name),
+          status: 'bozza',
+        });
+      }
+    }, 1500);
+  };
 
   const updateLine = (index, newLine) => {
     const updated = [...lines];
     updated[index] = newLine;
     setLines(updated);
+    scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines: updated });
   };
 
   const removeLine = (index) => {
     if (lines.length === 1) return;
-    setLines(lines.filter((_, i) => i !== index));
+    const updated = lines.filter((_, i) => i !== index);
+    setLines(updated);
+    scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines: updated });
   };
 
   const addLine = () => {
-    setLines([...lines, { ...EMPTY_LINE }]);
+    const updated = [...lines, { ...EMPTY_LINE }];
+    setLines(updated);
   };
 
-  const handleSave = () => {
-    if (!clientName.trim()) {
-      toast.error('Inserisci il nome del cliente');
-      return;
-    }
-    saveMutation.mutate({
-      client_name: clientName,
-      date: quoteDate,
-      payment_terms: paymentTerms,
-      lines: lines.filter(l => l.part_name),
-      status: 'bozza',
-    });
+  const handleNewQuote = () => {
+    currentIdRef.current = null;
+    window.history.replaceState(null, '', '/');
+    setClientName('');
+    setPaymentTerms(PAYMENT_TERMS[0]);
+    setQuoteDate(new Date().toISOString().split('T')[0]);
+    setLines([{ ...EMPTY_LINE }]);
   };
 
   const validLines = lines.filter(l => l.part_name && l.material_code);
@@ -188,14 +213,19 @@ export default function Quoter() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">Calcola il prezzo di vendita dei tuoi prodotti 3D</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {autoSaved && (
+            <span className="flex items-center gap-1 text-xs text-green-600">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Salvato
+            </span>
+          )}
+          <Button variant="outline" onClick={handleNewQuote} className="gap-2">
+            <FilePlus className="w-4 h-4" />
+            Nuovo
+          </Button>
           <Button variant="outline" onClick={() => generateQuotePdf({ clientName, paymentTerms, date: quoteDate, lines, materials, config })} className="gap-2">
             <FileDown className="w-4 h-4" />
             Esporta PDF
-          </Button>
-          <Button onClick={handleSave} className="gap-2">
-            <Save className="w-4 h-4" />
-            Salva
           </Button>
         </div>
       </div>
@@ -213,7 +243,7 @@ export default function Quoter() {
             <Label className="text-xs font-medium text-muted-foreground mb-1.5 block">Cliente</Label>
             <Input
               value={clientName}
-              onChange={e => setClientName(e.target.value)}
+              onChange={e => { setClientName(e.target.value); scheduleAutoSave({ clientName: e.target.value, quoteDate, paymentTerms, lines }); }}
               placeholder="Nome cliente"
               className="h-9"
             />
@@ -223,13 +253,13 @@ export default function Quoter() {
             <Input
               type="date"
               value={quoteDate}
-              onChange={e => setQuoteDate(e.target.value)}
+              onChange={e => { setQuoteDate(e.target.value); scheduleAutoSave({ clientName, quoteDate: e.target.value, paymentTerms, lines }); }}
               className="h-9"
             />
           </div>
           <div>
             <Label className="text-xs font-medium text-muted-foreground mb-1.5 block">Pagamento</Label>
-            <Select value={paymentTerms} onValueChange={setPaymentTerms}>
+            <Select value={paymentTerms} onValueChange={v => { setPaymentTerms(v); scheduleAutoSave({ clientName, quoteDate, paymentTerms: v, lines }); }}>
               <SelectTrigger className="h-9 text-xs">
                 <SelectValue />
               </SelectTrigger>
