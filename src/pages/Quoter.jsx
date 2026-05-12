@@ -235,6 +235,7 @@ export default function Quoter() {
                 <th className="p-2 text-xs font-medium text-muted-foreground text-right">+Fail</th>
                 <th className="p-2 text-xs font-medium text-muted-foreground text-right">Markup</th>
                 <th className="p-2 text-xs font-medium text-muted-foreground text-right">Prezzo Man.</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-center">Partner</th>
                 <th className="p-2 text-xs font-medium text-muted-foreground text-right">Totale</th>
                 <th className="p-2 text-xs font-medium text-muted-foreground text-right">Al pz</th>
                 <th className="p-2 w-10"></th>

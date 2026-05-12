@@ -2,6 +2,7 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import MaterialSelector from './MaterialSelector';
 import { calculateLinePrice } from '@/lib/pricingEngine';
 
@@ -131,6 +132,18 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
           className="h-8 text-xs w-24 font-mono text-right"
           step="0.01"
         />
+      </td>
+
+      {/* Sconto partner 15% */}
+      <td className="p-2 text-center">
+        <div className="flex flex-col items-center gap-0.5">
+          <Checkbox
+            checked={!!line.partner_discount}
+            onCheckedChange={v => update('partner_discount', !!v)}
+            className="h-4 w-4"
+          />
+          <span className="text-[9px] text-muted-foreground">-15%</span>
+        </div>
       </td>
 
       <td className="p-2 text-xs font-mono text-right font-bold text-primary">€{calc.finalPrice.toFixed(2)}</td>

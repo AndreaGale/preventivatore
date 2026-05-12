@@ -155,6 +155,10 @@ export function calculateLinePrice(line, material, config, allMaterials, materia
   const netPrice = costWithFailRate * markup * line.quantity;
   const pricePerUnit = netPrice / line.quantity;
   
+  const discountFactor = line.partner_discount ? 0.85 : 1;
+  const basePrice = line.manual_price || netPrice;
+  const finalPrice = basePrice * discountFactor;
+
   return {
     weightWithWaste: totalWeight * 1.05,
     materialCostPerGram: material?.price_per_gram || 0,
@@ -167,7 +171,7 @@ export function calculateLinePrice(line, material, config, allMaterials, materia
     netPrice,
     pricePerUnit,
     useManualPrice: !!line.manual_price,
-    finalPrice: line.manual_price || netPrice,
-    finalPricePerUnit: line.manual_price ? line.manual_price / line.quantity : pricePerUnit,
+    finalPrice,
+    finalPricePerUnit: finalPrice / (line.quantity || 1),
   };
 }
