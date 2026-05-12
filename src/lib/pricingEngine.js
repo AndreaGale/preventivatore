@@ -74,7 +74,57 @@ export function computeDerivedCosts(config) {
   };
 }
 
-export function calculateLinePrice(line, material, config, allMaterials) {
+/**
+ * Calcola i grammi totali usati per ogni codice materiale su tutte le righe del preventivo.
+ * @param {Array} lines - righe del preventivo
+ * @returns {Object} { [material_code]: totalGrams }
+ */
+export function computeMaterialTotals(lines) {
+  const totals = {};
+  for (const line of lines) {
+    if (!line.part_name) continue;
+    const qty = line.quantity || 1;
+    if (line.sub_materials && line.sub_materials.length > 0) {
+      for (const sm of line.sub_materials) {
+        if (!sm.material_code) continue;
+        totals[sm.material_code] = (totals[sm.material_code] || 0) + (sm.weight_g || 0) * qty;
+      }
+    } else if (line.material_code) {
+      totals[line.material_code] = (totals[line.material_code] || 0) + (line.weight_g || 0) * qty;
+    }
+  }
+  return totals;
+}
+
+/**
+ * Restituisce il prezzo al grammo corretto per un materiale,
+ * scegliendo lo scaglione in base al totale grammi usati nel preventivo.
+ * Se il materiale non ha price_tiers, usa price_per_gram di default.
+ * @param {Object} material
+ * @param {number} totalGramsInQuote - grammi totali di questo materiale nel preventivo
+ */
+export function getPricePerGram(material, totalGramsInQuote = 0) {
+  if (!material) return 0;
+  const tiers = material.price_tiers;
+  if (!tiers || tiers.length === 0) return material.price_per_gram || 0;
+
+  const spoolWeight = material.spool_weight || 1000;
+  const totalSpools = totalGramsInQuote / spoolWeight;
+
+  // Ordina scaglioni per min_spools crescente
+  const sorted = [...tiers].sort((a, b) => (a.min_spools || 0) - (b.min_spools || 0));
+
+  // Prendi l'ultimo scaglione applicabile (il più alto con min_spools <= totalSpools)
+  let best = sorted[0];
+  for (const tier of sorted) {
+    if (totalSpools >= (tier.min_spools || 0)) {
+      best = tier;
+    }
+  }
+  return best.price_per_gram || material.price_per_gram || 0;
+}
+
+export function calculateLinePrice(line, material, config, allMaterials, materialTotals = {}) {
   const derived = computeDerivedCosts(config);
 
   // Calcolo costo materiale: supporta multi-materiale (sub_materials) o singolo materiale
@@ -84,13 +134,15 @@ export function calculateLinePrice(line, material, config, allMaterials) {
     for (const sm of line.sub_materials) {
       const mat = allMaterials?.find(m => m.code === sm.material_code);
       const w = sm.weight_g * 1.05;
-      materialCost += w * (mat?.price_per_gram || 0);
+      const ppg = getPricePerGram(mat, materialTotals[sm.material_code] || 0);
+      materialCost += w * ppg;
       totalWeight += sm.weight_g;
     }
   } else {
     totalWeight = line.weight_g;
     const weightWithWaste = totalWeight * 1.05;
-    materialCost = weightWithWaste * (material?.price_per_gram || 0);
+    const ppg = getPricePerGram(material, materialTotals[line.material_code] || 0);
+    materialCost = weightWithWaste * ppg;
   }
 
   const machineCost = line.print_time_min * derived.machineCostPerMinute;

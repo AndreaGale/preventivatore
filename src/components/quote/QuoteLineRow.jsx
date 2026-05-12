@@ -5,10 +5,10 @@ import { Trash2 } from 'lucide-react';
 import MaterialSelector from './MaterialSelector';
 import { calculateLinePrice } from '@/lib/pricingEngine';
 
-export default function QuoteLineRow({ line, index, materials, config, onChange, onRemove }) {
+export default function QuoteLineRow({ line, index, materials, config, onChange, onRemove, materialTotals = {} }) {
   const hasSubMaterials = line.sub_materials && line.sub_materials.length > 0;
   const material = hasSubMaterials ? null : materials.find(m => m.code === line.material_code);
-  const calc = calculateLinePrice(line, material, config, materials);
+  const calc = calculateLinePrice(line, material, config, materials, materialTotals);
 
   const update = (field, value) => onChange(index, { ...line, [field]: value });
 

@@ -1,11 +1,11 @@
 import React from 'react';
 import { calculateLinePrice } from '@/lib/pricingEngine';
 
-export default function QuoteSummary({ lines, materials, config }) {
+export default function QuoteSummary({ lines, materials, config, materialTotals = {} }) {
   const totals = lines.reduce(
     (acc, line) => {
       const material = materials.find(m => m.code === line.material_code);
-      const calc = calculateLinePrice(line, material, config, materials);
+      const calc = calculateLinePrice(line, material, config, materials, materialTotals);
       return {
         materialCost: acc.materialCost + calc.materialCost * line.quantity,
         machineCost: acc.machineCost + calc.machineCost * line.quantity,

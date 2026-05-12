@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import QuoteLineRow from '@/components/quote/QuoteLineRow';
 import QuoteSummary from '@/components/quote/QuoteSummary';
 import ThreeMfUpload from '@/components/quote/ThreeMfUpload';
-import { computeDefaultConfig } from '@/lib/pricingEngine';
+import { computeDefaultConfig, computeMaterialTotals } from '@/lib/pricingEngine';
 
 const PAYMENT_TERMS = [
   'DATA FATTURA FINE MESE',
@@ -86,6 +86,7 @@ export default function Quoter() {
   };
 
   const validLines = lines.filter(l => l.part_name && l.material_code);
+  const materialTotals = computeMaterialTotals(lines);
 
   // Cerca il miglior materiale corrispondente al tipo filamento (es. "PLA", "PETG")
   const autoMatchMaterial = (filamentType) => {
@@ -229,6 +230,7 @@ export default function Quoter() {
                   config={config}
                   onChange={updateLine}
                   onRemove={removeLine}
+                  materialTotals={materialTotals}
                 />
               ))}
             </tbody>
@@ -245,7 +247,7 @@ export default function Quoter() {
       {/* Summary */}
       {validLines.length > 0 && (
         <div className="max-w-sm ml-auto">
-          <QuoteSummary lines={validLines} materials={materials} config={config} />
+          <QuoteSummary lines={validLines} materials={materials} config={config} materialTotals={materialTotals} />
         </div>
       )}
     </div>
