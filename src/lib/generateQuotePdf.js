@@ -4,16 +4,14 @@ import { calculateLinePrice } from './pricingEngine';
 const EUR = (v) => `€${parseFloat(v || 0).toFixed(2)}`;
 const fmt = (v, d = 2) => parseFloat(v || 0).toFixed(d);
 
-// Palette
 const C = {
-  primary:    [220, 90, 20],
-  primaryDark:[160, 60, 10],
-  dark:       [22, 24, 35],
-  gray:       [90, 95, 110],
-  light:      [246, 247, 250],
-  border:     [220, 223, 230],
-  white:      [255, 255, 255],
-  rowAlt:     [250, 251, 254],
+  primary:  [220, 90, 20],
+  dark:     [22, 24, 35],
+  gray:     [100, 105, 120],
+  light:    [246, 247, 250],
+  rowAlt:   [250, 251, 254],
+  border:   [220, 223, 230],
+  white:    [255, 255, 255],
 };
 
 function setFont(doc, size, style = 'normal', color = C.dark) {
@@ -22,272 +20,218 @@ function setFont(doc, size, style = 'normal', color = C.dark) {
   doc.setTextColor(...color);
 }
 
-function drawTriangle(doc, x1, y1, x2, y2, x3, y3, style = 'F') {
-  doc.lines([[x2 - x1, y2 - y1], [x3 - x2, y3 - y2], [x1 - x3, y1 - y3]], x1, y1, [1, 1], style, true);
-}
-
-function drawLogo(doc, x, y, size = 10) {
-  const s = size;
-  doc.setFillColor(...C.primary);
-  doc.rect(x, y, s * 0.8, s * 0.8, 'F');
-  doc.setFillColor(...C.primaryDark);
-  drawTriangle(doc, x, y, x + s * 0.8, y, x + s * 1.1, y - s * 0.3);
-  doc.setFillColor(180, 70, 15);
-  drawTriangle(doc, x + s * 0.8, y, x + s * 1.1, y - s * 0.3, x + s * 1.1, y + s * 0.5);
-  drawTriangle(doc, x + s * 0.8, y, x + s * 0.8, y + s * 0.8, x + s * 1.1, y + s * 0.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(size * 1.4);
-  doc.setTextColor(...C.dark);
-  doc.text('3D', x + s * 1.4, y + s * 0.55);
-  doc.setTextColor(...C.primary);
-  doc.text('Price', x + s * 1.4 + size * 1.15 * 0.5 + 2.5, y + s * 0.55);
-}
-
-function drawHLine(doc, x1, y, x2, color = C.border, lw = 0.3) {
+function hLine(doc, x1, y, x2, color = C.border, lw = 0.3) {
   doc.setDrawColor(...color);
   doc.setLineWidth(lw);
   doc.line(x1, y, x2, y);
 }
 
-// ─── PAGINA 1: Copertina / Dati cliente + riepilogo materiali ────────────────
-function drawCoverPage(doc, { clientName, paymentTerms, date, lines, materials, config }) {
+// ── PAGINA 1: Copertina con dati cliente + tabella materiali ─────────────────
+function drawCoverPage(doc, { clientName, paymentTerms, date, lines, materials }) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = 18;
+  const M = 16;
 
-  // Banda laterale sinistra decorativa
+  // Banda superiore arancio
   doc.setFillColor(...C.primary);
-  doc.rect(0, 0, 7, pageH, 'F');
+  doc.rect(0, 0, pageW, 46, 'F');
 
-  // Banda arancio superiore
-  doc.setFillColor(...C.primary);
-  doc.rect(7, 0, pageW - 7, 50, 'F');
+  // Striscia laterale sinistra
+  doc.setFillColor(...C.dark);
+  doc.rect(0, 0, 6, pageH, 'F');
 
-  // Logo in alto a sinistra (bianco su sfondo arancio)
-  doc.setFillColor(...C.white);
-  const ls = 9;
-  const lx = margin + 2, ly = 14;
-  // Cubo stilizzato bianco
-  doc.rect(lx, ly, ls * 0.8, ls * 0.8, 'F');
-  doc.setFillColor(255, 200, 160);
-  drawTriangle(doc, lx, ly, lx + ls * 0.8, ly, lx + ls * 1.1, ly - ls * 0.3);
-  doc.setFillColor(255, 170, 120);
-  drawTriangle(doc, lx + ls * 0.8, ly, lx + ls * 1.1, ly - ls * 0.3, lx + ls * 1.1, ly + ls * 0.5);
-  drawTriangle(doc, lx + ls * 0.8, ly, lx + ls * 0.8, ly + ls * 0.8, lx + ls * 1.1, ly + ls * 0.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(255, 255, 255);
-  doc.text('3D Price', lx + ls * 1.4 + 1, ly + ls * 0.65);
+  // Logo testuale
+  setFont(doc, 20, 'bold', C.white);
+  doc.text('3D', M + 2, 22);
+  setFont(doc, 20, 'normal', [255, 200, 150]);
+  doc.text('Price', M + 20, 22);
 
-  // Titolo PREVENTIVO
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(32);
-  doc.setTextColor(255, 255, 255);
-  doc.text('PREVENTIVO', pageW / 2, 30, { align: 'center' });
+  setFont(doc, 9, 'normal', [255, 220, 190]);
+  doc.text('Sistema di preventivazione stampa 3D', M + 2, 30);
 
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(255, 220, 190);
+  // Titolo PREVENTIVO (destra)
+  setFont(doc, 28, 'bold', C.white);
+  doc.text('PREVENTIVO', pageW - M, 25, { align: 'right' });
+
   const fmtDate = date
-    ? new Date(date).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+    ? new Date(date + 'T00:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
     : new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
-  doc.text(`Emesso il ${fmtDate}`, pageW / 2, 40, { align: 'center' });
 
-  let y = 64;
+  setFont(doc, 8, 'normal', [255, 220, 190]);
+  doc.text(`Emesso il ${fmtDate}`, pageW - M, 35, { align: 'right' });
+
+  let y = 58;
 
   // ── Box Cliente
   doc.setFillColor(...C.light);
-  doc.roundedRect(margin, y, pageW - margin * 2, 30, 3, 3, 'F');
-  drawHLine(doc, margin, y, margin + (pageW - margin * 2), C.primary, 1);
+  doc.roundedRect(M, y, pageW - M * 2, 28, 2, 2, 'F');
+  doc.setFillColor(...C.primary);
+  doc.rect(M, y, 3, 28, 'F');
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(...C.primary);
-  doc.text('DESTINATARIO', margin + 5, y + 7);
+  setFont(doc, 6.5, 'bold', C.gray);
+  doc.text('DESTINATARIO', M + 8, y + 7);
+  setFont(doc, 13, 'bold', C.dark);
+  doc.text(clientName || '—', M + 8, y + 18);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...C.dark);
-  doc.text(clientName || '—', margin + 5, y + 18);
+  // Info destra nel box
+  const infoX = pageW - M - 100;
+  setFont(doc, 6.5, 'bold', C.gray);
+  doc.text('DATA EMISSIONE', infoX, y + 7);
+  setFont(doc, 8, 'normal', C.dark);
+  doc.text(fmtDate, infoX, y + 14);
 
-  // Dati ordine (destra)
-  const infoX = pageW - margin - 80;
-  const drawInfo = (label, value, iy) => {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6.5);
-    doc.setTextColor(...C.gray);
-    doc.text(label.toUpperCase(), infoX, iy);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(...C.dark);
-    doc.text(value || '—', infoX, iy + 5);
-  };
-  drawInfo('Data emissione', fmtDate, y + 8);
-  drawInfo('Condizioni di pagamento', paymentTerms || '—', y + 20);
+  setFont(doc, 6.5, 'bold', C.gray);
+  doc.text('CONDIZIONI DI PAGAMENTO', infoX, y + 20);
+  setFont(doc, 7, 'normal', C.dark);
+  const ptLines = doc.splitTextToSize(paymentTerms || '—', 95);
+  doc.text(ptLines, infoX, y + 26);
 
-  y += 38;
+  y += 36;
 
-  // ── Titolo sezione materiali
+  // ── Sezione materiali
   setFont(doc, 8, 'bold', C.primary);
-  doc.text('DETTAGLIO MATERIALI UTILIZZATI', margin, y + 5);
-  drawHLine(doc, margin, y + 8, pageW - margin, C.primary, 0.5);
+  doc.text('DETTAGLIO MATERIALI UTILIZZATI', M, y + 5);
+  hLine(doc, M, y + 8, pageW - M, C.primary, 0.6);
   y += 14;
 
-  // Aggrega materiali per codice
+  // Aggrega materiali
   const matMap = {};
   lines.filter(l => l.part_name).forEach(line => {
     if (line.sub_materials && line.sub_materials.length > 0) {
       line.sub_materials.forEach(sm => {
         if (!sm.material_code) return;
-        if (!matMap[sm.material_code]) matMap[sm.material_code] = { weight_g: 0, qty: 0 };
-        matMap[sm.material_code].weight_g += (sm.weight_g || 0) * (line.quantity || 1);
-        matMap[sm.material_code].qty += (line.quantity || 1);
+        if (!matMap[sm.material_code]) matMap[sm.material_code] = 0;
+        matMap[sm.material_code] += (sm.weight_g || 0) * (line.quantity || 1);
       });
     } else if (line.material_code) {
-      if (!matMap[line.material_code]) matMap[line.material_code] = { weight_g: 0, qty: 0 };
-      matMap[line.material_code].weight_g += (line.weight_g || 0) * (line.quantity || 1);
-      matMap[line.material_code].qty += (line.quantity || 1);
+      if (!matMap[line.material_code]) matMap[line.material_code] = 0;
+      matMap[line.material_code] += (line.weight_g || 0) * (line.quantity || 1);
     }
   });
 
   // Header tabella materiali
-  const matCols = [
-    { label: 'Codice',    w: 28 },
-    { label: 'Materiale', w: 55 },
-    { label: 'Brand',     w: 35 },
-    { label: 'Colore',    w: 30 },
-    { label: 'Peso tot. (g)', w: 28, r: true },
-    { label: '€/g',       w: 22, r: true },
-    { label: 'Costo mat.', w: 28, r: true },
+  const mCols = [
+    { label: 'Codice',      w: 28, r: false },
+    { label: 'Materiale',   w: 55, r: false },
+    { label: 'Brand',       w: 35, r: false },
+    { label: 'Colore',      w: 28, r: false },
+    { label: 'Peso tot.(g)',w: 28, r: true  },
+    { label: '€/g',        w: 22, r: true  },
+    { label: 'Costo mat.',  w: 28, r: true  },
   ];
-  let mx = margin;
-  const matColsX = matCols.map(c => { const x = mx; mx += c.w; return x; });
+  let mx = M;
+  const mColsX = mCols.map(c => { const x = mx; mx += c.w; return x; });
 
   const mhH = 7;
   doc.setFillColor(...C.dark);
-  doc.rect(margin, y, pageW - margin * 2, mhH, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
-  doc.setTextColor(...C.white);
-  matCols.forEach((col, i) => {
-    const tx = col.r ? matColsX[i] + col.w - 1 : matColsX[i] + 1;
+  doc.rect(M, y, pageW - M * 2, mhH, 'F');
+  setFont(doc, 6.5, 'bold', C.white);
+  mCols.forEach((col, i) => {
+    const tx = col.r ? mColsX[i] + col.w - 1 : mColsX[i] + 2;
     doc.text(col.label, tx, y + 4.8, { align: col.r ? 'right' : 'left' });
   });
   y += mhH;
 
-  // Righe materiali
-  Object.entries(matMap).forEach(([code, { weight_g }], ri) => {
+  Object.entries(matMap).forEach(([code, totalWeight], ri) => {
     const mat = materials.find(m => m.code === code);
     if (!mat) return;
-    const rowH = 7;
+    const rh = 7;
     if (ri % 2 === 1) {
       doc.setFillColor(...C.rowAlt);
-      doc.rect(margin, y, pageW - margin * 2, rowH, 'F');
+      doc.rect(M, y, pageW - M * 2, rh, 'F');
     }
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(...C.dark);
-    const matCost = weight_g * 1.05 * (mat.price_per_gram || 0);
+    setFont(doc, 7, 'normal', C.dark);
+    const matCost = totalWeight * 1.05 * (mat.price_per_gram || 0);
     const vals = [
       mat.code || '',
       mat.material_name || '—',
       mat.brand || '—',
       mat.color || '—',
-      fmt(weight_g, 1),
+      fmt(totalWeight, 1),
       EUR(mat.price_per_gram || 0),
       EUR(matCost),
     ];
     vals.forEach((v, i) => {
-      const tx = matCols[i].r ? matColsX[i] + matCols[i].w - 1 : matColsX[i] + 1;
-      doc.text(v, tx, y + 4.8, { align: matCols[i].r ? 'right' : 'left' });
+      const tx = mCols[i].r ? mColsX[i] + mCols[i].w - 1 : mColsX[i] + 2;
+      doc.text(v, tx, y + 4.8, { align: mCols[i].r ? 'right' : 'left' });
     });
-    drawHLine(doc, margin, y + rowH, pageW - margin, C.border);
-    y += rowH;
+    hLine(doc, M, y + rh, pageW - M, C.border);
+    y += rh;
   });
 
-  // ── Footer pagina 1
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(6.5);
-  doc.setTextColor(...C.gray);
-  doc.text('Pagina 1 di 2  •  Continua sul retro con il dettaglio costi', pageW / 2, pageH - 8, { align: 'center' });
-  doc.setFillColor(...C.primary);
-  doc.rect(0, pageH - 4, pageW, 4, 'F');
+  if (Object.keys(matMap).length === 0) {
+    setFont(doc, 7, 'normal', C.gray);
+    doc.text('Nessun materiale specificato.', M + 2, y + 5);
+    y += 10;
+  }
+
+  // Footer pag 1
+  doc.setFillColor(...C.dark);
+  doc.rect(0, pageH - 8, pageW, 8, 'F');
+  setFont(doc, 6, 'normal', [160, 165, 180]);
+  doc.text('Pagina 1 — continua sul retro con il dettaglio costi', pageW / 2, pageH - 3.5, { align: 'center' });
 }
 
-// ─── PAGINA 2: Tabella costi dettagliata + riepilogo finale ──────────────────
-function drawDetailPage(doc, { clientName, paymentTerms, date, lines, materials, config }) {
+// ── PAGINA 2: Tabella costi + riepilogo ──────────────────────────────────────
+function drawDetailPage(doc, { clientName, paymentTerms, lines, materials, config }) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = 18;
-
-  // Banda laterale
-  doc.setFillColor(...C.primary);
-  doc.rect(0, 0, 7, pageH, 'F');
+  const M = 16;
 
   // Mini header
   doc.setFillColor(...C.dark);
-  doc.rect(7, 0, pageW - 7, 14, 'F');
+  doc.rect(0, 0, pageW, 6, 'F');
+  doc.setFillColor(...C.primary);
+  doc.rect(0, 0, 6, pageH, 'F');
+
+  doc.setFillColor(...C.dark);
+  doc.rect(6, 0, pageW - 6, 14, 'F');
   setFont(doc, 8, 'bold', C.white);
-  doc.text('PREVENTIVO  —  DETTAGLIO COSTI', margin, 9);
-  setFont(doc, 7, 'normal', [180, 185, 200]);
-  doc.text(`Cliente: ${clientName || '—'}`, pageW - margin, 9, { align: 'right' });
+  doc.text('DETTAGLIO COSTI', M, 9);
+  setFont(doc, 7, 'normal', [160, 165, 180]);
+  doc.text(`Cliente: ${clientName || '—'}`, pageW - M, 9, { align: 'right' });
 
   let y = 20;
 
-  // ── Tabella costi
+  // Colonne tabella costi
   const cols = [
     { label: '#',          w: 7,  align: 'center' },
-    { label: 'Componente', w: 46, align: 'left'   },
-    { label: 'Materiale',  w: 40, align: 'left'   },
+    { label: 'Componente', w: 44, align: 'left'   },
+    { label: 'Materiale',  w: 38, align: 'left'   },
     { label: 'g',          w: 14, align: 'right'  },
-    { label: 'Stampa',     w: 16, align: 'right'  },
-    { label: 'MDO',        w: 13, align: 'right'  },
+    { label: 'Stampa',     w: 15, align: 'right'  },
+    { label: 'MDO',        w: 12, align: 'right'  },
     { label: 'Qtà',        w: 10, align: 'right'  },
-    { label: 'Mat. €',     w: 17, align: 'right'  },
-    { label: 'Macch. €',   w: 17, align: 'right'  },
-    { label: 'MDO €',      w: 15, align: 'right'  },
-    { label: '+Fail €',    w: 15, align: 'right'  },
+    { label: 'Mat.€',      w: 17, align: 'right'  },
+    { label: 'Macch.€',    w: 17, align: 'right'  },
+    { label: 'MDO€',       w: 14, align: 'right'  },
+    { label: '+Fail€',     w: 14, align: 'right'  },
     { label: 'Markup',     w: 14, align: 'right'  },
     { label: 'Totale',     w: 19, align: 'right'  },
     { label: 'Al pz',      w: 17, align: 'right'  },
   ];
-
-  let cx = margin;
+  let cx = M;
   const colsX = cols.map(c => { const x = cx; cx += c.w; return x; });
 
-  const headerH = 8;
-  doc.setFillColor(...C.dark);
-  doc.rect(margin, y, pageW - margin * 2, headerH, 'F');
-  setFont(doc, 6.2, 'bold', C.white);
-  cols.forEach((col, i) => {
-    const tx = col.align === 'right'
-      ? colsX[i] + col.w - 1
-      : col.align === 'center'
-        ? colsX[i] + col.w / 2
+  const drawHeader = (yy) => {
+    const hh = 8;
+    doc.setFillColor(...C.dark);
+    doc.rect(M, yy, pageW - M * 2, hh, 'F');
+    setFont(doc, 6.2, 'bold', C.white);
+    cols.forEach((col, i) => {
+      const tx = col.align === 'right' ? colsX[i] + col.w - 1
+        : col.align === 'center' ? colsX[i] + col.w / 2
         : colsX[i] + 1;
-    doc.text(col.label, tx, y + 5.2, { align: col.align });
-  });
-  y += headerH;
+      doc.text(col.label, tx, yy + 5.2, { align: col.align });
+    });
+    return yy + hh;
+  };
+
+  y = drawHeader(y);
 
   let totalFinal = 0, totalMat = 0, totalMachine = 0, totalLabor = 0;
   let rowIdx = 0;
-
   const validLines = lines.filter(l => l.part_name);
-
-  const drawTableHeader = (yy) => {
-    doc.setFillColor(...C.dark);
-    doc.rect(margin, yy, pageW - margin * 2, headerH, 'F');
-    setFont(doc, 6.2, 'bold', C.white);
-    cols.forEach((col, i) => {
-      const tx = col.align === 'right'
-        ? colsX[i] + col.w - 1
-        : col.align === 'center'
-          ? colsX[i] + col.w / 2
-          : colsX[i] + 1;
-      doc.text(col.label, tx, yy + 5.2, { align: col.align });
-    });
-    return yy + headerH;
-  };
 
   validLines.forEach((line, li) => {
     const material = materials.find(m => m.code === line.material_code);
@@ -297,46 +241,40 @@ function drawDetailPage(doc, { clientName, paymentTerms, date, lines, materials,
     totalMachine += calc.machineCost;
     totalLabor += calc.laborCost;
 
-    const hasSubMaterials = line.sub_materials && line.sub_materials.length > 0;
-    let matLabel = '';
-    if (hasSubMaterials) {
-      matLabel = line.sub_materials.map(sm => {
-        const m = materials.find(x => x.code === sm.material_code);
-        return m ? `${m.material_name} ${sm.weight_g}g` : sm.material_code;
-      }).join(' + ');
-    } else {
-      matLabel = material
-        ? `${material.material_name}${material.color ? ' ' + material.color : ''}`
-        : '—';
-    }
+    const hasSubMat = line.sub_materials && line.sub_materials.length > 0;
+    let matLabel = hasSubMat
+      ? line.sub_materials.map(sm => {
+          const m = materials.find(x => x.code === sm.material_code);
+          return m ? `${m.material_name} ${sm.weight_g}g` : sm.material_code;
+        }).join(' + ')
+      : material ? `${material.material_name}${material.color ? ' ' + material.color : ''}` : '—';
 
     const matLines = doc.splitTextToSize(matLabel, cols[2].w - 2);
     const compLines = doc.splitTextToSize(line.part_name || '', cols[1].w - 2);
     const dynH = Math.max(matLines.length, compLines.length) * 4.2 + 3;
 
-    if (y + dynH > pageH - 45) {
+    if (y + dynH > pageH - 48) {
       doc.addPage();
       doc.setFillColor(...C.primary);
-      doc.rect(0, 0, 7, pageH, 'F');
+      doc.rect(0, 0, 6, pageH, 'F');
       doc.setFillColor(...C.dark);
-      doc.rect(7, 0, pageW - 7, 14, 'F');
+      doc.rect(6, 0, pageW - 6, 14, 'F');
       setFont(doc, 8, 'bold', C.white);
-      doc.text('PREVENTIVO  —  DETTAGLIO COSTI (continua)', margin, 9);
+      doc.text('DETTAGLIO COSTI (continua)', M, 9);
       y = 20;
-      y = drawTableHeader(y);
+      y = drawHeader(y);
     }
 
     if (rowIdx % 2 === 1) {
       doc.setFillColor(...C.rowAlt);
-      doc.rect(margin, y, pageW - margin * 2, dynH, 'F');
+      doc.rect(M, y, pageW - M * 2, dynH, 'F');
     }
 
     setFont(doc, 6.5, 'normal', C.dark);
-    const textY = y + 4.5;
-
-    doc.text(String(li + 1), colsX[0] + cols[0].w / 2, textY, { align: 'center' });
-    doc.text(compLines, colsX[1] + 1, textY);
-    doc.text(matLines, colsX[2] + 1, textY);
+    const ty = y + 4.5;
+    doc.text(String(li + 1), colsX[0] + cols[0].w / 2, ty, { align: 'center' });
+    doc.text(compLines, colsX[1] + 1, ty);
+    doc.text(matLines, colsX[2] + 1, ty);
 
     const nums = [
       fmt(line.weight_g, 1),
@@ -347,101 +285,91 @@ function drawDetailPage(doc, { clientName, paymentTerms, date, lines, materials,
       EUR(calc.machineCost),
       EUR(calc.laborCost),
       EUR(calc.costWithFailRate),
-      `×${fmt(calc.markup, 2)}`,
+      `x${fmt(calc.markup, 2)}`,
       EUR(calc.finalPrice),
       EUR(calc.finalPricePerUnit),
     ];
     nums.forEach((val, ni) => {
-      doc.text(val, colsX[3 + ni] + cols[3 + ni].w - 1, textY, { align: 'right' });
+      doc.text(val, colsX[3 + ni] + cols[3 + ni].w - 1, ty, { align: 'right' });
     });
 
-    drawHLine(doc, margin, y + dynH, pageW - margin, C.border);
+    hLine(doc, M, y + dynH, pageW - M, C.border);
     y += dynH;
     rowIdx++;
   });
 
-  // ── Riepilogo finale
+  // ── Riepilogo
   y += 6;
-  if (y > pageH - 60) {
+  if (y > pageH - 65) {
     doc.addPage();
     doc.setFillColor(...C.primary);
-    doc.rect(0, 0, 7, pageH, 'F');
-    y = 20;
+    doc.rect(0, 0, 6, pageH, 'F');
+    y = 16;
   }
 
-  const summaryW = 82;
-  const summaryX = pageW - margin - summaryW;
+  const sW = 82;
+  const sX = pageW - M - sW;
 
-  // Titolo riepilogo
   setFont(doc, 7.5, 'bold', C.primary);
-  doc.text('RIEPILOGO ECONOMICO', summaryX, y);
-  y += 4;
-  drawHLine(doc, summaryX, y, pageW - margin, C.primary, 0.5);
-  y += 4;
+  doc.text('RIEPILOGO ECONOMICO', sX, y);
+  y += 3;
+  hLine(doc, sX, y, pageW - M, C.primary, 0.5);
+  y += 5;
 
-  const drawRow = (label, value, bold = false, highlight = false, topBorder = false) => {
+  const drawRow = (label, value, bold = false, highlight = false) => {
     const rh = 8;
     if (highlight) {
       doc.setFillColor(...C.primary);
-      doc.roundedRect(summaryX, y - 5, summaryW, rh + 1, 2, 2, 'F');
+      doc.roundedRect(sX, y - 5.5, sW, rh + 1, 2, 2, 'F');
       doc.setTextColor(...C.white);
     } else {
       doc.setFillColor(...C.light);
-      doc.rect(summaryX, y - 5, summaryW, rh, 'F');
+      doc.rect(sX, y - 5.5, sW, rh, 'F');
       doc.setTextColor(...C.dark);
     }
-    if (topBorder && !highlight) drawHLine(doc, summaryX, y - 5, summaryX + summaryW, C.border);
     doc.setFont('helvetica', bold ? 'bold' : 'normal');
     doc.setFontSize(highlight ? 8 : 7);
-    doc.text(label, summaryX + 4, y);
-    doc.text(value, summaryX + summaryW - 4, y, { align: 'right' });
+    doc.text(label, sX + 4, y);
+    doc.text(value, sX + sW - 4, y, { align: 'right' });
     y += rh + 1;
   };
 
-  drawRow('Costo Materiali',       EUR(totalMat));
-  drawRow('Costo Macchina',        EUR(totalMachine));
-  drawRow('Manodopera',            EUR(totalLabor));
-  drawRow('Subtotale netto',       EUR(totalFinal), true, false, true);
-  drawRow('IVA 22%',               EUR(totalFinal * 0.22));
-  drawRow('TOTALE IVA INCLUSA',    EUR(totalFinal * 1.22), true, true);
+  drawRow('Costo Materiali', EUR(totalMat));
+  drawRow('Costo Macchina', EUR(totalMachine));
+  drawRow('Manodopera', EUR(totalLabor));
+  drawRow('Subtotale (IVA escl.)', EUR(totalFinal), true);
+  drawRow('IVA 22%', EUR(totalFinal * 0.22));
+  drawRow('TOTALE IVA INCLUSA', EUR(totalFinal * 1.22), true, true);
 
-  // Nota pagamento
-  y += 2;
+  y += 3;
   setFont(doc, 6.5, 'normal', C.gray);
-  const nota = doc.splitTextToSize(`Condizioni di pagamento: ${paymentTerms || '—'}`, summaryW);
-  doc.text(nota, summaryX, y);
+  const ptLines = doc.splitTextToSize(`Pagamento: ${paymentTerms || '—'}`, sW);
+  doc.text(ptLines, sX, y);
 
-  // ── Note preventivo (sinistra)
-  const notesX = margin;
-  const notesY = pageH - 30;
+  // Note
   setFont(doc, 6.5, 'bold', C.gray);
-  doc.text('NOTE', notesX, notesY);
+  doc.text('NOTE', M, pageH - 28);
   setFont(doc, 6, 'normal', C.gray);
-  doc.text('• I prezzi sono IVA esclusa salvo dove indicato.', notesX, notesY + 5);
-  doc.text('• Validità preventivo: 30 giorni dalla data di emissione.', notesX, notesY + 9.5);
-  doc.text('• I pesi includono il 5% di materiale di scarto.', notesX, notesY + 14);
+  doc.text('• Prezzi IVA esclusa salvo dove indicato.', M, pageH - 22);
+  doc.text('• Validità preventivo: 30 giorni dalla data di emissione.', M, pageH - 17);
+  doc.text('• I pesi includono il 5% di materiale di scarto.', M, pageH - 12);
 
-  // ── Footer
+  // Footer
   doc.setFillColor(...C.dark);
   doc.rect(0, pageH - 8, pageW, 8, 'F');
-  doc.setFillColor(...C.primary);
-  doc.rect(0, pageH - 8, 7, 8, 'F');
   setFont(doc, 6, 'normal', [160, 165, 180]);
   doc.text('3D Price  •  Documento generato automaticamente', pageW / 2, pageH - 3.5, { align: 'center' });
 }
 
-// ─── ENTRY POINT ─────────────────────────────────────────────────────────────
+// ── ENTRY POINT ───────────────────────────────────────────────────────────────
 export function generateQuotePdf({ clientName, paymentTerms, date, lines, materials, config }) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-  // Pagina 1: copertina + materiali
   drawCoverPage(doc, { clientName, paymentTerms, date, lines, materials, config });
 
-  // Pagina 2: dettaglio costi
   doc.addPage();
   drawDetailPage(doc, { clientName, paymentTerms, date, lines, materials, config });
 
-  // Salva
   const safeName = (clientName || 'preventivo').replace(/[^a-zA-Z0-9]/g, '_');
   const dateStr = (date || new Date().toISOString().split('T')[0]).replace(/-/g, '');
   doc.save(`preventivo_${safeName}_${dateStr}.pdf`);
