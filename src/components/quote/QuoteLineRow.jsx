@@ -146,7 +146,16 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         </div>
       </td>
 
-      <td className="p-2 text-xs font-mono text-right font-bold text-primary">€{calc.finalPrice.toFixed(2)}</td>
+      <td className="p-2 text-right">
+        {line.partner_discount ? (
+          <div className="flex flex-col items-end">
+            <span className="text-xs font-mono text-muted-foreground line-through">€{(calc.finalPrice / 0.85).toFixed(2)}</span>
+            <span className="text-xs font-mono font-bold text-green-600">€{calc.finalPrice.toFixed(2)}</span>
+          </div>
+        ) : (
+          <span className="text-xs font-mono font-bold text-primary">€{calc.finalPrice.toFixed(2)}</span>
+        )}
+      </td>
       <td className="p-2 text-xs font-mono text-right text-muted-foreground">€{calc.finalPricePerUnit.toFixed(2)}</td>
 
       {/* Elimina */}
