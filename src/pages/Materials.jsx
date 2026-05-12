@@ -199,7 +199,7 @@ export default function Materials() {
                     <td className="p-3">
                       <Badge variant="outline" className="text-xs">{m.color}</Badge>
                     </td>
-                    <td className="p-3 text-sm font-mono text-right">€{m.price_per_spool?.toFixed(2)}</td>
+                    <td className="p-3 text-sm font-mono text-right">€{(m.price_tiers?.[0]?.price_per_spool ?? m.price_per_spool ?? 0).toFixed(2)}</td>
                     <td className="p-3 text-sm font-mono text-right">{m.spool_weight}g</td>
                     <td className="p-3 text-sm font-mono text-right font-medium text-primary">€{m.price_per_gram?.toFixed(4)}</td>
                     <td className="p-3">
