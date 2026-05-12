@@ -30,19 +30,22 @@ async function syncFromSheet(existingMaterials, createFn, updateFn, deleteFn) {
     const cols = row.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || row.split(',');
     const clean = cols.map(c => c.replace(/^"|"$/g, '').trim());
 
-    const code = clean[0];
-    const material_name = clean[1];
-    const brand = clean[2];
-    const color = clean[3];
-    const spool_weight = parseFloat(clean[4]) || 1000;
-    const min_spools = parseFloat(clean[5]) || 1;
-    const price_per_spool = parseEuro(clean[6]);
-    const price_per_gram = parseFloat(String(clean[7]).replace(',', '.')) || (spool_weight > 0 ? price_per_spool / spool_weight : 0);
+    // Colonne: [0]=visible_partners [1]=visible_clients [2]=code [3]=material_name [4]=brand [5]=color [6]=spool_weight [7]=min_spools [8]=price_per_spool [9]=price_per_gram
+    const visible_partners = clean[0]?.toUpperCase() === 'TRUE';
+    const visible_clients = clean[1]?.toUpperCase() === 'TRUE';
+    const code = clean[2];
+    const material_name = clean[3];
+    const brand = clean[4];
+    const color = clean[5];
+    const spool_weight = parseFloat(clean[6]) || 1000;
+    const min_spools = parseFloat(clean[7]) || 1;
+    const price_per_spool = parseEuro(clean[8]);
+    const price_per_gram = parseFloat(String(clean[9]).replace(',', '.')) || (spool_weight > 0 ? price_per_spool / spool_weight : 0);
 
     if (!code || !material_name) continue;
 
     if (!byCode[code]) {
-      byCode[code] = { code, material_name, brand, color, spool_weight, price_tiers: [] };
+      byCode[code] = { code, material_name, brand, color, spool_weight, visible_partners, visible_clients, price_tiers: [] };
     }
     byCode[code].price_tiers.push({ min_spools, price_per_spool, price_per_gram });
   }
