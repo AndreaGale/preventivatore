@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,9 +31,65 @@ const EMPTY_COMPONENT = {
   notes: '',
 };
 
+// Componente separato per upload file — stato uploading locale, nessun loop
+function FileUploadZone({ fileUrl, fileName, onUpload, onClear }) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['stl', 'step', 'stp', '3mf'].includes(ext)) {
+      toast.error('Formato non supportato. Usa STL, STEP o 3MF.');
+      return;
+    }
+    setUploading(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      onUpload(file_url, file.name);
+      toast.success(`${file.name} caricato`);
+    } catch (err) {
+      toast.error('Errore durante il caricamento. Riprova.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (fileUrl) {
+    return (
+      <div className="flex items-center gap-2 p-2.5 bg-green-50 border border-green-200 rounded-lg">
+        <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+        <span className="text-xs text-green-700 font-medium truncate">{fileName}</span>
+        <button type="button" className="ml-auto text-xs text-muted-foreground hover:text-foreground" onClick={onClear}>
+          Cambia
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-6 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors">
+      {uploading ? (
+        <>
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Caricamento...</span>
+        </>
+      ) : (
+        <>
+          <Upload className="w-5 h-5 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Clicca o trascina il file</span>
+          <span className="text-[10px] text-muted-foreground/70">STL, STEP, 3MF</span>
+        </>
+      )}
+      <input type="file" className="hidden" accept=".stl,.step,.stp,.3mf" onChange={handleChange} />
+    </label>
+  );
+}
+
 export default function RequestQuote() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [materials, setMaterials] = useState([]);
 
   const [form, setForm] = useState({
     first_name: '', last_name: '', company: '', vat_number: '',
@@ -42,16 +97,13 @@ export default function RequestQuote() {
   });
 
   const [components, setComponents] = useState([{ ...EMPTY_COMPONENT }]);
-  const [uploadingIdx, setUploadingIdx] = useState(null);
 
-  const { data: allMaterials = [], isLoading: loadingMaterials } = useQuery({
-    queryKey: ['materials-public'],
-    queryFn: () => base44.entities.Material.list('-created_date', 200),
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-  });
-  // Solo materiali visibili ai clienti
-  const materials = allMaterials.filter(m => m.visible_clients);
+  // Carica materiali visibili ai clienti (una sola volta, senza retry loop)
+  useEffect(() => {
+    base44.entities.Material.filter({ visible_clients: true }, '-created_date', 200)
+      .then(data => setMaterials(data))
+      .catch(() => {}); // silenzioso se non autenticato
+  }, []);
 
   const updateForm = (field, value) => setForm(f => ({ ...f, [field]: value }));
 
@@ -64,26 +116,6 @@ export default function RequestQuote() {
   const removeComponent = (i) => {
     if (components.length === 1) return;
     setComponents(prev => prev.filter((_, idx) => idx !== i));
-  };
-
-  const handleFileUpload = async (i, file) => {
-    if (!file) return;
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (!['stl', 'step', 'stp', '3mf'].includes(ext)) {
-      toast.error('Formato non supportato. Usa STL, STEP o 3MF.');
-      return;
-    }
-    setUploadingIdx(i);
-    try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      updateComponent(i, 'file_url', file_url);
-      updateComponent(i, 'file_name', file.name);
-      toast.success(`${file.name} caricato`);
-    } catch (err) {
-      toast.error('Errore durante il caricamento. Riprova.');
-    } finally {
-      setUploadingIdx(null);
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -99,7 +131,6 @@ export default function RequestQuote() {
     setLoading(true);
     await base44.entities.QuoteRequest.create({ ...form, components, status: 'nuova' });
 
-    // Notifica email interna
     const componentsSummary = components.map((c, i) =>
       `Componente ${i + 1}: ${c.file_name || 'N/D'} | Materiale: ${c.material_code || 'N/D'} | Qtà: ${c.quantity} | Qualità: ${c.quality} | Performance: ${c.performance}${c.notes ? ` | Note: ${c.notes}` : ''}`
     ).join('\n');
@@ -202,27 +233,21 @@ export default function RequestQuote() {
                   )}
                 </div>
 
-                {/* File upload */}
+                {/* File upload — stato locale isolato */}
                 <div className="mb-4">
                   <Label className="text-xs font-medium text-muted-foreground mb-1.5 block">File 3D *</Label>
-                  {comp.file_url ? (
-                    <div className="flex items-center gap-2 p-2.5 bg-green-50 border border-green-200 rounded-lg">
-                      <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
-                      <span className="text-xs text-green-700 font-medium truncate">{comp.file_name}</span>
-                      <button type="button" className="ml-auto text-xs text-muted-foreground hover:text-foreground" onClick={() => { updateComponent(i, 'file_url', ''); updateComponent(i, 'file_name', ''); }}>
-                        Cambia
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-6 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors">
-                      {uploadingIdx === i ? (
-                        <><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Caricamento...</span></>
-                      ) : (
-                        <><Upload className="w-5 h-5 text-muted-foreground" /><span className="text-xs text-muted-foreground">Clicca o trascina il file</span><span className="text-[10px] text-muted-foreground/70">STL, STEP, 3MF</span></>
-                      )}
-                      <input type="file" className="hidden" accept=".stl,.step,.stp,.3mf" onChange={e => handleFileUpload(i, e.target.files[0])} />
-                    </label>
-                  )}
+                  <FileUploadZone
+                    fileUrl={comp.file_url}
+                    fileName={comp.file_name}
+                    onUpload={(url, name) => {
+                      updateComponent(i, 'file_url', url);
+                      updateComponent(i, 'file_name', name);
+                    }}
+                    onClear={() => {
+                      updateComponent(i, 'file_url', '');
+                      updateComponent(i, 'file_name', '');
+                    }}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
