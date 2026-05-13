@@ -44,9 +44,11 @@ export default function RequestQuote() {
   const [components, setComponents] = useState([{ ...EMPTY_COMPONENT }]);
   const [uploadingIdx, setUploadingIdx] = useState(null);
 
-  const { data: allMaterials = [] } = useQuery({
+  const { data: allMaterials = [], isLoading: loadingMaterials } = useQuery({
     queryKey: ['materials-public'],
     queryFn: () => base44.entities.Material.list('-created_date', 200),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
   });
   // Solo materiali visibili ai clienti
   const materials = allMaterials.filter(m => m.visible_clients);
@@ -72,11 +74,16 @@ export default function RequestQuote() {
       return;
     }
     setUploadingIdx(i);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    updateComponent(i, 'file_url', file_url);
-    updateComponent(i, 'file_name', file.name);
-    setUploadingIdx(null);
-    toast.success(`${file.name} caricato`);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      updateComponent(i, 'file_url', file_url);
+      updateComponent(i, 'file_name', file.name);
+      toast.success(`${file.name} caricato`);
+    } catch (err) {
+      toast.error('Errore durante il caricamento. Riprova.');
+    } finally {
+      setUploadingIdx(null);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -221,18 +228,27 @@ export default function RequestQuote() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Materiale */}
                   <Field label="Materiale">
-                    <Select value={comp.material_code} onValueChange={v => updateComponent(i, 'material_code', v)}>
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="Seleziona materiale" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {materials.map(m => (
-                          <SelectItem key={m.code} value={m.code} className="text-xs">
-                            {m.material_name}{m.color ? ` (${m.color})` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {materials.length > 0 ? (
+                      <Select value={comp.material_code} onValueChange={v => updateComponent(i, 'material_code', v)}>
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue placeholder="Seleziona materiale" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {materials.map(m => (
+                            <SelectItem key={m.code} value={m.code} className="text-xs">
+                              {m.material_name}{m.color ? ` (${m.color})` : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        value={comp.material_code}
+                        onChange={e => updateComponent(i, 'material_code', e.target.value)}
+                        placeholder="es. PETG, PLA, ABS..."
+                        className="h-9 text-xs"
+                      />
+                    )}
                   </Field>
 
                   {/* Quantità */}
