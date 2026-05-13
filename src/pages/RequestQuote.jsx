@@ -57,30 +57,33 @@ function FileUploadZone({ fileUrl, fileName, onUpload, onClear }) {
 
   if (fileUrl) {
     return (
-      <div className="flex items-center gap-2 p-2.5 bg-green-50 border border-green-200 rounded-lg">
-        <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
-        <span className="text-xs text-green-700 font-medium truncate">{fileName}</span>
-        <button type="button" className="ml-auto text-xs text-muted-foreground hover:text-foreground" onClick={onClear}>
+      <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-green-700 font-semibold truncate">{fileName}</p>
+          <p className="text-[10px] text-green-600">File caricato con successo</p>
+        </div>
+        <button type="button" className="text-xs text-muted-foreground hover:text-foreground underline shrink-0" onClick={onClear}>
           Cambia
         </button>
       </div>
     );
   }
 
+  if (uploading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-primary/40 rounded-lg p-6 bg-primary/5">
+        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+        <span className="text-xs text-primary font-medium">Caricamento in corso...</span>
+      </div>
+    );
+  }
+
   return (
     <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-6 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors">
-      {uploading ? (
-        <>
-          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Caricamento...</span>
-        </>
-      ) : (
-        <>
-          <Upload className="w-5 h-5 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Clicca o trascina il file</span>
-          <span className="text-[10px] text-muted-foreground/70">STL, STEP, 3MF</span>
-        </>
-      )}
+      <Upload className="w-5 h-5 text-muted-foreground" />
+      <span className="text-xs text-muted-foreground">Clicca o trascina il file</span>
+      <span className="text-[10px] text-muted-foreground/70">STL, STEP, 3MF</span>
       <input type="file" className="hidden" accept=".stl,.step,.stp,.3mf" onChange={handleChange} />
     </label>
   );
@@ -100,8 +103,8 @@ export default function RequestQuote() {
 
   // Carica materiali visibili ai clienti (una sola volta, senza retry loop)
   useEffect(() => {
-    base44.entities.Material.filter({ visible_clients: true }, '-created_date', 200)
-      .then(data => setMaterials(data))
+    base44.entities.Material.list('-created_date', 200)
+      .then(data => setMaterials(data.filter(m => m.visible_clients)))
       .catch(() => {}); // silenzioso se non autenticato
   }, []);
 
