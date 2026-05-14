@@ -29,6 +29,11 @@
       ],
       "default": "bozza"
     },
+    "setup_points": {
+      "type": "number",
+      "description": "Punti attrezzaggio e preparazione file (15\u20ac/punto)",
+      "default": 0
+    },
     "lines": {
       "type": "array",
       "items": {

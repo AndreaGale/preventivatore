@@ -1,7 +1,7 @@
 import React from 'react';
 import { calculateLinePrice } from '@/lib/pricingEngine';
 
-export default function QuoteSummary({ lines, materials, config, materialTotals = {} }) {
+export default function QuoteSummary({ lines, materials, config, materialTotals = {}, setupPoints = 0 }) {
   const totals = lines.reduce(
     (acc, line) => {
       const material = materials.find(m => m.code === line.material_code);
@@ -17,8 +17,10 @@ export default function QuoteSummary({ lines, materials, config, materialTotals 
     { materialCost: 0, machineCost: 0, laborCost: 0, productionCost: 0, finalPrice: 0 }
   );
 
-  const iva = totals.finalPrice * 0.22;
-  const total = totals.finalPrice + iva;
+  const setupCost = setupPoints * 15;
+  const subtotal = totals.finalPrice + setupCost;
+  const iva = subtotal * 0.22;
+  const total = subtotal + iva;
 
   return (
     <div className="bg-card rounded-xl border border-border p-6">
@@ -30,7 +32,9 @@ export default function QuoteSummary({ lines, materials, config, materialTotals 
         <div className="border-t border-border my-3" />
         <Row label="Costo Produzione" value={totals.productionCost} />
         <div className="border-t border-border my-3" />
-        <Row label="Subtotale" value={totals.finalPrice} bold />
+        <Row label="Componenti" value={totals.finalPrice} bold />
+        {setupCost > 0 && <Row label={`Attrezzaggio (${setupPoints}pt)`} value={setupCost} bold />}
+        <Row label="Subtotale" value={subtotal} bold />
         <Row label="IVA (22%)" value={iva} muted />
         <div className="border-t border-border my-3" />
         <div className="flex justify-between items-center">

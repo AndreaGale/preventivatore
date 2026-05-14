@@ -1,17 +1,17 @@
 // Tabella markup scalabile per quantità
 const MARKUP_TABLE = [
-  { qty: 1, markup: 2.4 },
-  { qty: 10, markup: 2.3 },
-  { qty: 50, markup: 2.15 },
-  { qty: 100, markup: 2.0 },
-  { qty: 200, markup: 1.8 },
-  { qty: 500, markup: 1.5 },
-  { qty: 1000, markup: 1.25 },
-  { qty: 3000, markup: 1.2 },
-  { qty: 5000, markup: 1.18 },
-  { qty: 10000, markup: 1.15 },
-  { qty: 20000, markup: 1.1 },
-  { qty: 50000, markup: 1.0 },
+  { qty: 1, markup: 3.07 },
+  { qty: 10, markup: 2.95 },
+  { qty: 50, markup: 2.75 },
+  { qty: 100, markup: 2.56 },
+  { qty: 200, markup: 2.31 },
+  { qty: 500, markup: 1.92 },
+  { qty: 1000, markup: 1.60 },
+  { qty: 3000, markup: 1.54 },
+  { qty: 5000, markup: 1.51 },
+  { qty: 10000, markup: 1.47 },
+  { qty: 20000, markup: 1.41 },
+  { qty: 50000, markup: 1.28 },
 ];
 
 export function getMarkup(quantity) {

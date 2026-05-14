@@ -43,6 +43,7 @@ export default function Quoter() {
   const [paymentTerms, setPaymentTerms] = useState(PAYMENT_TERMS[0]);
   const [lines, setLines] = useState([{ ...EMPTY_LINE }]);
   const [quoteDate, setQuoteDate] = useState(new Date().toISOString().split('T')[0]);
+  const [setupPoints, setSetupPoints] = useState(0);
   const [autoSaved, setAutoSaved] = useState(false);
   const autoSaveTimer = useRef(null);
   const currentIdRef = useRef(editId); // traccia l'id corrente (utile dopo primo salvataggio auto)
@@ -73,6 +74,7 @@ export default function Quoter() {
       setPaymentTerms(q.payment_terms || PAYMENT_TERMS[0]);
       setQuoteDate(q.date || new Date().toISOString().split('T')[0]);
       setLines(q.lines && q.lines.length > 0 ? q.lines : [{ ...EMPTY_LINE }]);
+      setSetupPoints(q.setup_points || 0);
     }
   }, [existingQuote]);
 
@@ -102,6 +104,7 @@ export default function Quoter() {
           date: data.quoteDate,
           payment_terms: data.paymentTerms,
           lines: data.lines.filter(l => l.part_name),
+          setup_points: data.setupPoints ?? setupPoints,
           status: 'bozza',
         });
       }
@@ -112,7 +115,7 @@ export default function Quoter() {
     const updated = [...lines];
     updated[index] = newLine;
     setLines(updated);
-    scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines: updated });
+    scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines: updated, setupPoints });
   };
 
   const removeLine = (index) => {
@@ -223,7 +226,7 @@ export default function Quoter() {
             <FilePlus className="w-4 h-4" />
             Nuovo
           </Button>
-          <Button variant="outline" onClick={() => generateQuotePdf({ clientName, paymentTerms, date: quoteDate, lines, materials, config })} className="gap-2">
+          <Button variant="outline" onClick={() => generateQuotePdf({ clientName, paymentTerms, date: quoteDate, lines, materials, config, setupPoints })} className="gap-2">
             <FileDown className="w-4 h-4" />
             Esporta PDF
           </Button>
@@ -322,10 +325,31 @@ export default function Quoter() {
         </div>
       </div>
 
+      {/* Attrezzaggio */}
+      <div className="bg-card rounded-xl border border-border p-5 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Attrezzaggio e preparazione file</p>
+          <p className="text-xs text-muted-foreground mt-0.5">€15,00 per punto — totale: <span className="font-mono font-semibold text-foreground">€{(setupPoints * 15).toFixed(2)}</span></p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => { const v = Math.max(0, setupPoints - 1); setSetupPoints(v); scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines, setupPoints: v }); }}
+            className="w-8 h-8 rounded-lg border border-border bg-muted hover:bg-muted/80 flex items-center justify-center text-lg font-bold text-foreground transition-colors"
+          >−</button>
+          <span className="w-10 text-center text-lg font-bold font-mono text-foreground">{setupPoints}</span>
+          <button
+            type="button"
+            onClick={() => { const v = setupPoints + 1; setSetupPoints(v); scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines, setupPoints: v }); }}
+            className="w-8 h-8 rounded-lg border border-border bg-muted hover:bg-muted/80 flex items-center justify-center text-lg font-bold text-foreground transition-colors"
+          >+</button>
+        </div>
+      </div>
+
       {/* Summary */}
       {validLines.length > 0 && (
         <div className="max-w-sm ml-auto">
-          <QuoteSummary lines={validLines} materials={materials} config={config} materialTotals={materialTotals} />
+          <QuoteSummary lines={validLines} materials={materials} config={config} materialTotals={materialTotals} setupPoints={setupPoints} />
         </div>
       )}
     </div>

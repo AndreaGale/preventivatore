@@ -25,7 +25,7 @@ function hLine(doc, x1, y, x2, color = C.border, lw = 0.3) {
   doc.line(x1, y, x2, y);
 }
 
-export function generateQuotePdf({ clientName, paymentTerms, date, lines, materials, config }) {
+export function generateQuotePdf({ clientName, paymentTerms, date, lines, materials, config, setupPoints = 0 }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -123,6 +123,26 @@ export function generateQuotePdf({ clientName, paymentTerms, date, lines, materi
     rowIdx++;
   });
 
+  // ── Riga attrezzaggio ─────────────────────────────────────────────────────────
+  const setupCost = setupPoints * 15;
+  if (setupCost > 0) {
+    const dynH = 8;
+    if (rowIdx % 2 === 1) {
+      doc.setFillColor(...C.rowAlt);
+      doc.rect(M, y, usableW, dynH, 'F');
+    }
+    setFont(doc, 7, 'normal', C.dark);
+    const ty = y + 5;
+    doc.text(`Attrezzaggio e preparazione file (${setupPoints} pt)`, colsX[0] + 2, ty);
+    doc.text('—', colsX[1] + 2, ty);
+    doc.text('1', colsX[2] + cols[2].w - 2, ty, { align: 'right' });
+    doc.text(EUR(setupCost), colsX[3] + cols[3].w - 2, ty, { align: 'right' });
+    hLine(doc, M, y + dynH, pageW - M, C.border);
+    y += dynH;
+  }
+
+  const grandTotal = totalFinal + setupCost;
+
   // ── Totale ────────────────────────────────────────────────────────────────────
   y += 6;
 
@@ -145,9 +165,9 @@ export function generateQuotePdf({ clientName, paymentTerms, date, lines, materi
     y += rh + 1;
   };
 
-  drawTotRow('Subtotale (IVA esclusa)', EUR(totalFinal));
-  drawTotRow('IVA 22%', EUR(totalFinal * 0.22));
-  drawTotRow('TOTALE IVA INCLUSA', EUR(totalFinal * 1.22), true);
+  drawTotRow('Subtotale (IVA esclusa)', EUR(grandTotal));
+  drawTotRow('IVA 22%', EUR(grandTotal * 0.22));
+  drawTotRow('TOTALE IVA INCLUSA', EUR(grandTotal * 1.22), true);
 
   // ── Note ──────────────────────────────────────────────────────────────────────
   setFont(doc, 6, 'normal', C.gray);
