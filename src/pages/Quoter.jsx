@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, FileDown, FilePlus, CheckCircle2 } from 'lucide-react';
+import { Plus, FileDown, FilePlus, CheckCircle2, BarChart2 } from 'lucide-react';
 import { generateQuotePdf } from '@/lib/generateQuotePdf';
+import { generateCostReportPdf } from '@/lib/generateCostReportPdf';
 import { toast } from 'sonner';
 import QuoteLineRow from '@/components/quote/QuoteLineRow';
 import QuoteSummary from '@/components/quote/QuoteSummary';
@@ -225,6 +226,10 @@ export default function Quoter() {
           <Button variant="outline" onClick={handleNewQuote} className="gap-2">
             <FilePlus className="w-4 h-4" />
             Nuovo
+          </Button>
+          <Button variant="outline" onClick={() => generateCostReportPdf({ clientName, date: quoteDate, lines: lines.filter(l => l.part_name && l.material_code), materials, config, setupPoints })} className="gap-2">
+            <BarChart2 className="w-4 h-4" />
+            Report Costi
           </Button>
           <Button variant="outline" onClick={() => generateQuotePdf({ clientName, paymentTerms, date: quoteDate, lines, materials, config, setupPoints })} className="gap-2">
             <FileDown className="w-4 h-4" />
