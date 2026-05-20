@@ -156,8 +156,9 @@ export function calculateLinePrice(line, material, config, allMaterials, materia
   const pricePerUnit = netPrice / line.quantity;
   
   const discountFactor = line.partner_discount ? 0.85 : 1;
-  const basePrice = line.manual_price || netPrice;
-  const finalPrice = basePrice * discountFactor;
+  // manual_price è al pezzo; se impostato, il totale è manual_price * quantity
+  const basePriceTotal = line.manual_price ? line.manual_price * line.quantity : netPrice;
+  const finalPrice = basePriceTotal * discountFactor;
 
   return {
     weightWithWaste: totalWeight * 1.05,

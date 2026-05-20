@@ -128,7 +128,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
           type="number"
           value={line.manual_price || ''}
           onChange={e => update('manual_price', parseFloat(e.target.value) || 0)}
-          placeholder={calc.netPrice.toFixed(2)}
+          placeholder={(calc.netPrice / (line.quantity || 1)).toFixed(2)}
           className="h-8 text-xs w-24 font-mono text-right"
           step="0.01"
         />
