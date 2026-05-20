@@ -113,6 +113,7 @@ export function generateCostReportPdf({ clientName, date, lines, materials, conf
   // ── Breakdown costi ───────────────────────────────────────────────────────────
   const brkW = 90;
   const brkX = M;
+  const yStart = y; // salva la Y iniziale per allineare la tabella
 
   const brkRows = [
     { label: 'Materiali (netti)', value: grandMaterialCost },
@@ -173,7 +174,7 @@ export function generateCostReportPdf({ clientName, date, lines, materials, conf
     { label: 'Ricavo',       w: tableW * 0.10, align: 'right' },
   ];
 
-  let ty = M + 46; // allinea con l'inizio del breakdown
+  let ty = yStart; // allinea con l'inizio del breakdown
   let cx2 = tableX;
   const colsX = cols.map(c => { const x = cx2; cx2 += c.w; return x; });
 
