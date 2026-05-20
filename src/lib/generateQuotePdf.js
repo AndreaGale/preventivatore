@@ -54,10 +54,11 @@ export function generateQuotePdf({ clientName, paymentTerms, date, lines, materi
 
   // ── Tabella ───────────────────────────────────────────────────────────────────
   const cols = [
-    { label: 'Componente', w: 70, align: 'left' },
-    { label: 'Materiale',  w: 60, align: 'left' },
-    { label: 'Qtà',        w: 20, align: 'right' },
-    { label: 'Prezzo',     w: 30, align: 'right' },
+    { label: 'Componente', w: 62, align: 'left' },
+    { label: 'Materiale',  w: 55, align: 'left' },
+    { label: 'Qtà',        w: 15, align: 'right' },
+    { label: 'Prezzo/pz',  w: 27, align: 'right' },
+    { label: 'Totale',     w: 19, align: 'right' },
   ];
 
   const usableW = pageW - M * 2;
@@ -115,8 +116,10 @@ export function generateQuotePdf({ clientName, paymentTerms, date, lines, materi
     const ty = y + 5;
     doc.text(compLines, colsX[0] + 2, ty);
     doc.text(matLines, colsX[1] + 2, ty);
-    doc.text(String(line.quantity || 1), colsX[2] + cols[2].w - 2, ty, { align: 'right' });
-    doc.text(EUR(calc.finalPrice), colsX[3] + cols[3].w - 2, ty, { align: 'right' });
+    const qty = line.quantity || 1;
+    doc.text(String(qty), colsX[2] + cols[2].w - 2, ty, { align: 'right' });
+    doc.text(EUR(calc.finalPrice / qty), colsX[3] + cols[3].w - 2, ty, { align: 'right' });
+    doc.text(EUR(calc.finalPrice), colsX[4] + cols[4].w - 2, ty, { align: 'right' });
 
     hLine(doc, M, y + dynH, pageW - M, C.border);
     y += dynH;
@@ -137,6 +140,7 @@ export function generateQuotePdf({ clientName, paymentTerms, date, lines, materi
     doc.text('—', colsX[1] + 2, ty);
     doc.text('1', colsX[2] + cols[2].w - 2, ty, { align: 'right' });
     doc.text(EUR(setupCost), colsX[3] + cols[3].w - 2, ty, { align: 'right' });
+    doc.text(EUR(setupCost), colsX[4] + cols[4].w - 2, ty, { align: 'right' });
     hLine(doc, M, y + dynH, pageW - M, C.border);
     y += dynH;
   }
