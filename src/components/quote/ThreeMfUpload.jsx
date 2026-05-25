@@ -34,11 +34,19 @@ export default function ThreeMfUpload({ onImport }) {
     setError(null);
     try {
       const results = await Promise.all(threeMfFiles.map(f => parse3MF(f)));
-      setParsedFiles(results);
-      // Espandi tutto di default
-      const exp = {};
-      results.forEach((r, fi) => r.plates.forEach((_, pi) => { exp[`${fi}-${pi}`] = true; }));
-      setExpanded(exp);
+      setParsedFiles(prev => {
+        const updated = [...prev, ...results];
+        // Espandi i nuovi piatti
+        setExpanded(exp => {
+          const newExp = { ...exp };
+          results.forEach((r, ri) => {
+            const fi = prev.length + ri;
+            r.plates.forEach((_, pi) => { newExp[`${fi}-${pi}`] = true; });
+          });
+          return newExp;
+        });
+        return updated;
+      });
     } catch (e) {
       setError('Errore durante la lettura del file: ' + e.message);
     } finally {
@@ -58,6 +66,19 @@ export default function ThreeMfUpload({ onImport }) {
   };
 
   const clear = () => { setParsedFiles([]); setError(null); setExpanded({}); };
+
+  const removeFile = (fi) => {
+    setParsedFiles(prev => prev.filter((_, i) => i !== fi));
+    setExpanded(prev => {
+      const newExp = {};
+      Object.entries(prev).forEach(([key, val]) => {
+        const [fIdx, pIdx] = key.split('-').map(Number);
+        if (fIdx < fi) newExp[key] = val;
+        else if (fIdx > fi) newExp[`${fIdx - 1}-${pIdx}`] = val;
+      });
+      return newExp;
+    });
+  };
   const togglePlate = (key) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
 
   // Genera righe per il Quoter:
@@ -110,36 +131,39 @@ export default function ThreeMfUpload({ onImport }) {
 
   return (
     <div className="space-y-3">
-      {/* Drop zone */}
-      {parsedFiles.length === 0 && (
-        <div
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={onDrop}
-          onClick={() => inputRef.current?.click()}
-          className={`relative border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all duration-200 ${
-            isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/50'
-          }`}
-        >
-          <input ref={inputRef} type="file" accept=".3mf" multiple className="hidden" onChange={onFileInput} />
-          {isLoading ? (
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="w-7 h-7 text-primary animate-spin" />
-              <p className="text-xs text-muted-foreground">Lettura file in corso...</p>
+      {/* Drop zone — sempre visibile */}
+      <div
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={onDrop}
+        onClick={() => inputRef.current?.click()}
+        className={`relative border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all duration-200 ${
+          isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/50'
+        }`}
+      >
+        <input ref={inputRef} type="file" accept=".3mf" multiple className="hidden" onChange={onFileInput} />
+        {isLoading ? (
+          <div className="flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 text-primary animate-spin" />
+            <p className="text-xs text-muted-foreground">Lettura file in corso...</p>
+          </div>
+        ) : parsedFiles.length === 0 ? (
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <FileBox className="w-5 h-5 text-primary" />
             </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                <FileBox className="w-5 h-5 text-primary" />
-              </div>
-              <p className="text-sm font-medium text-foreground">Carica file .3mf slicizzato</p>
-              <p className="text-xs text-muted-foreground">
-                Trascina qui o clicca · Bambu Studio, OrcaSlicer, PrusaSlicer
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+            <p className="text-sm font-medium text-foreground">Carica file .3mf slicizzato</p>
+            <p className="text-xs text-muted-foreground">
+              Trascina qui o clicca · Bambu Studio, OrcaSlicer, PrusaSlicer
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center gap-2 py-1">
+            <FileBox className="w-4 h-4 text-primary" />
+            <p className="text-xs text-muted-foreground">Aggiungi altri file .3mf</p>
+          </div>
+        )}
+      </div>
 
       {/* Errore */}
       {error && (
@@ -171,6 +195,9 @@ export default function ThreeMfUpload({ onImport }) {
                 <FileBox className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                 <span className="text-xs font-semibold text-foreground truncate flex-1">{file.fileName}</span>
                 <span className="text-xs text-muted-foreground shrink-0">{file.slicer}</span>
+                <button onClick={() => removeFile(fi)} className="ml-1 text-muted-foreground hover:text-destructive transition-colors">
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
 
               {/* Piatti */}
