@@ -290,19 +290,14 @@ export default function Quoter() {
                 <th className="p-2 text-xs font-medium text-muted-foreground text-center w-10">#</th>
                 <th className="p-2 text-xs font-medium text-muted-foreground text-left min-w-[160px]">Componente</th>
                 <th className="p-2 text-xs font-medium text-muted-foreground text-left min-w-[200px]">Materiale</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-right">Peso (g)</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-right">T.Stampa (min)</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-right">T.MDO (min)</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-right">Qtà</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-right">Mat. €</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-right">Macch. €</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-right">MDO €</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-right">+Fail</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-right">Markup</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-right">Prezzo Man.</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center">Partner</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-right">Totale</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-right">Al pz</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-right min-w-[80px]">Peso (g)</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-right min-w-[80px]">T.Stampa (min)</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-right min-w-[70px]">T.MDO (min)</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-right min-w-[55px]">Qtà</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-right min-w-[110px]">Prezzo/pz</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-center w-16">Partner</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-right min-w-[80px]">Totale</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-right min-w-[65px]">Al pz</th>
                 <th className="p-2 w-10"></th>
               </tr>
             </thead>
