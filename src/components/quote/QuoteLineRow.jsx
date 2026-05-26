@@ -80,14 +80,14 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         {/* Peso */}
         <td className="p-2">
           {hasSubMaterials ? (
-            <span className="text-xs font-mono block text-right text-muted-foreground">{line.weight_g}g</span>
+            <span className="text-xs font-mono block text-center text-muted-foreground">{line.weight_g}g</span>
           ) : (
             <Input
               type="number"
               value={line.weight_g || ''}
               onChange={e => update('weight_g', parseFloat(e.target.value) || 0)}
               placeholder="0"
-              className="h-8 text-xs w-20 font-mono text-right"
+              className="h-8 text-xs w-full font-mono text-center"
             />
           )}
         </td>
@@ -99,7 +99,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
             value={line.print_time_min || ''}
             onChange={e => update('print_time_min', parseFloat(e.target.value) || 0)}
             placeholder="0"
-            className="h-8 text-xs w-20 font-mono text-right"
+            className="h-8 text-xs w-full font-mono text-center"
           />
         </td>
 
@@ -110,7 +110,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
             value={line.labor_time_min || ''}
             onChange={e => update('labor_time_min', parseFloat(e.target.value) || 0)}
             placeholder="0"
-            className="h-8 text-xs w-16 font-mono text-right"
+            className="h-8 text-xs w-full font-mono text-center"
           />
         </td>
 
@@ -121,21 +121,21 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
             value={line.quantity || ''}
             onChange={e => update('quantity', parseInt(e.target.value) || 1)}
             placeholder="1"
-            className="h-8 text-xs w-14 font-mono text-right"
+            className="h-8 text-xs w-full font-mono text-center"
             min={1}
           />
         </td>
 
         {/* Prezzo manuale */}
         <td className="p-2">
-          <div className="flex flex-col items-end gap-0.5">
+          <div className="flex flex-col items-center gap-0.5">
             <span className="text-[9px] text-muted-foreground">suggerito: €{(calc.netPrice / (line.quantity || 1)).toFixed(2)}</span>
             <Input
               type="number"
               value={line.manual_price || ''}
               onChange={e => update('manual_price', parseFloat(e.target.value) || 0)}
               placeholder={(calc.netPrice / (line.quantity || 1)).toFixed(2)}
-              className="h-8 text-xs w-24 font-mono text-right"
+              className="h-8 text-xs w-full font-mono text-center"
               step="0.01"
             />
           </div>
@@ -154,9 +154,9 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         </td>
 
         {/* Totale */}
-        <td className="p-2 text-right">
+        <td className="p-2 text-center">
           {line.partner_discount ? (
-            <div className="flex flex-col items-end">
+            <div className="flex flex-col items-center">
               <span className="text-xs font-mono text-muted-foreground line-through">€{(calc.finalPrice / 0.85).toFixed(2)}</span>
               <span className="text-xs font-mono font-bold text-green-600">€{calc.finalPrice.toFixed(2)}</span>
             </div>
@@ -166,7 +166,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         </td>
 
         {/* Al pz */}
-        <td className="p-2 text-xs font-mono text-right text-muted-foreground whitespace-nowrap">
+        <td className="p-2 text-xs font-mono text-center text-muted-foreground whitespace-nowrap">
           €{calc.finalPricePerUnit.toFixed(2)}
         </td>
 
