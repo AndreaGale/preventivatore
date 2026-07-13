@@ -1,17 +1,18 @@
 // Tabella markup scalabile per quantità
+// Penalizza i pochi pezzi (prototipi one-off) e diventa più competitiva sulle produzioni in serie
 const MARKUP_TABLE = [
-  { qty: 1, markup: 3.07 },
-  { qty: 10, markup: 2.95 },
-  { qty: 50, markup: 2.75 },
-  { qty: 100, markup: 2.56 },
-  { qty: 200, markup: 2.31 },
-  { qty: 500, markup: 1.92 },
-  { qty: 1000, markup: 1.60 },
-  { qty: 3000, markup: 1.54 },
-  { qty: 5000, markup: 1.51 },
-  { qty: 10000, markup: 1.47 },
-  { qty: 20000, markup: 1.41 },
-  { qty: 50000, markup: 1.28 },
+  { qty: 1, markup: 4.00 },
+  { qty: 10, markup: 3.40 },
+  { qty: 50, markup: 2.80 },
+  { qty: 100, markup: 2.40 },
+  { qty: 200, markup: 2.00 },
+  { qty: 500, markup: 1.70 },
+  { qty: 1000, markup: 1.50 },
+  { qty: 3000, markup: 1.35 },
+  { qty: 5000, markup: 1.28 },
+  { qty: 10000, markup: 1.22 },
+  { qty: 20000, markup: 1.18 },
+  { qty: 50000, markup: 1.15 },
 ];
 
 export function getMarkup(quantity) {
@@ -34,17 +35,17 @@ export function getMarkupTable() {
 
 export function computeDefaultConfig() {
   return {
-    monthly_fixed_costs: 1500,
+    monthly_fixed_costs: 4450,
     working_days_per_month: 25,
     hours_per_day: 8,
-    num_printers: 20,
+    num_printers: 30,
     farm_efficiency: 0.8,
     printer_cost: 1500,
     printer_lifespan_years: 4,
     maintenance_cost_per_hour: 0.1,
     power_consumption_kw: 0.2,
     energy_cost_per_kwh: 0.3,
-    monthly_gross_salary: 5600,
+    monthly_gross_salary: 3000,
     monthly_work_hours: 160,
     fail_rate: 0.07,
   };
