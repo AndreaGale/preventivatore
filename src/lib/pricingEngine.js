@@ -1,6 +1,6 @@
-// Tabella markup scalabile per quantità
+// Tabella markup scalabile di default per quantità
 // Penalizza i pochi pezzi (prototipi one-off); margini sulle produzioni in serie invariati
-const MARKUP_TABLE = [
+export const DEFAULT_MARKUP_TABLE = [
   { qty: 1, markup: 4.00 },
   { qty: 10, markup: 3.40 },
   { qty: 50, markup: 2.75 },
@@ -15,22 +15,27 @@ const MARKUP_TABLE = [
   { qty: 50000, markup: 1.28 },
 ];
 
-export function getMarkup(quantity) {
-  // Interpolazione lineare tra i livelli
-  if (quantity <= MARKUP_TABLE[0].qty) return MARKUP_TABLE[0].markup;
-  if (quantity >= MARKUP_TABLE[MARKUP_TABLE.length - 1].qty) return MARKUP_TABLE[MARKUP_TABLE.length - 1].markup;
-  
-  for (let i = 0; i < MARKUP_TABLE.length - 1; i++) {
-    if (quantity >= MARKUP_TABLE[i].qty && quantity <= MARKUP_TABLE[i + 1].qty) {
-      const ratio = (quantity - MARKUP_TABLE[i].qty) / (MARKUP_TABLE[i + 1].qty - MARKUP_TABLE[i].qty);
-      return MARKUP_TABLE[i].markup - ratio * (MARKUP_TABLE[i].markup - MARKUP_TABLE[i + 1].markup);
-    }
-  }
-  return MARKUP_TABLE[0].markup;
+function resolveTable(customTable) {
+  return (customTable && customTable.length > 0) ? customTable : DEFAULT_MARKUP_TABLE;
 }
 
-export function getMarkupTable() {
-  return MARKUP_TABLE;
+export function getMarkup(quantity, customTable) {
+  const table = resolveTable(customTable);
+  // Interpolazione lineare tra i livelli
+  if (quantity <= table[0].qty) return table[0].markup;
+  if (quantity >= table[table.length - 1].qty) return table[table.length - 1].markup;
+  
+  for (let i = 0; i < table.length - 1; i++) {
+    if (quantity >= table[i].qty && quantity <= table[i + 1].qty) {
+      const ratio = (quantity - table[i].qty) / (table[i + 1].qty - table[i].qty);
+      return table[i].markup - ratio * (table[i].markup - table[i + 1].markup);
+    }
+  }
+  return table[0].markup;
+}
+
+export function getMarkupTable(customTable) {
+  return resolveTable(customTable);
 }
 
 export function computeDefaultConfig() {
@@ -152,7 +157,7 @@ export function calculateLinePrice(line, material, config, allMaterials, materia
   const productionCost = materialCost + machineCost + laborCost;
   const costWithFailRate = productionCost * (1 + config.fail_rate);
   
-  const markup = getMarkup(line.quantity);
+  const markup = getMarkup(line.quantity, config.markup_table);
   const netPrice = costWithFailRate * markup * line.quantity;
   const pricePerUnit = netPrice / line.quantity;
   

@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Save, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import { computeDefaultConfig, computeDerivedCosts, getMarkupTable } from '@/lib/pricingEngine';
+import { computeDefaultConfig, computeDerivedCosts, DEFAULT_MARKUP_TABLE } from '@/lib/pricingEngine';
+import MarkupTableEditor from '@/components/config/MarkupTableEditor';
 
 const FIELDS = [
   { section: 'Costi Fissi', fields: [
@@ -44,7 +45,10 @@ export default function Configuration() {
 
   useEffect(() => {
     if (configs.length > 0) {
-      setForm(configs[0]);
+      setForm({
+        ...configs[0],
+        markup_table: configs[0].markup_table?.length ? configs[0].markup_table : DEFAULT_MARKUP_TABLE.map(r => ({ ...r })),
+      });
       setConfigId(configs[0].id);
     }
   }, [configs]);
@@ -64,7 +68,6 @@ export default function Configuration() {
   });
 
   const derived = computeDerivedCosts(form);
-  const markupTable = getMarkupTable();
 
   return (
     <div className="p-6 lg:p-8 max-w-4xl">
@@ -74,7 +77,7 @@ export default function Configuration() {
           <p className="text-sm text-muted-foreground mt-1">Parametri aziendali e costi fissi</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setForm(defaultConfig)} className="gap-2 text-sm">
+          <Button variant="outline" onClick={() => setForm({ ...defaultConfig, markup_table: DEFAULT_MARKUP_TABLE.map(r => ({ ...r })) })} className="gap-2 text-sm">
             <RotateCcw className="w-3.5 h-3.5" />
             Reset
           </Button>
@@ -137,17 +140,14 @@ export default function Configuration() {
         {/* Markup table */}
         <Card>
           <CardHeader className="pb-4">
-            <CardTitle className="text-sm font-semibold">Tabella Markup</CardTitle>
+            <CardTitle className="text-sm font-semibold">Tabella Markup (modificabile)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
-              {markupTable.map(row => (
-                <div key={row.qty} className="bg-muted rounded-lg p-3 text-center">
-                  <p className="text-xs text-muted-foreground">{row.qty} pz</p>
-                  <p className="font-mono font-bold text-sm text-primary">x{row.markup.toFixed(2)}</p>
-                </div>
-              ))}
-            </div>
+            <MarkupTableEditor
+              value={form.markup_table}
+              onChange={(table) => setForm({ ...form, markup_table: table })}
+            />
+            <p className="text-xs text-muted-foreground mt-3">Le soglie devono essere ordinate per quantit\u00e0 crescente. Il markup viene interpolato linearmente tra le soglie.</p>
           </CardContent>
         </Card>
       </div>

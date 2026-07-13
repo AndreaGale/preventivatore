@@ -44,6 +44,23 @@
     "fail_rate": {
       "type": "number",
       "description": "Percentuale fail rate (0-1)"
+    },
+    "markup_table": {
+      "type": "array",
+      "description": "Tabella markup scalabile per quantit\u00e0: soglie ordinate per quantit\u00e0 crescente",
+      "items": {
+        "type": "object",
+        "properties": {
+          "qty": {
+            "type": "number",
+            "description": "Soglia quantit\u00e0"
+          },
+          "markup": {
+            "type": "number",
+            "description": "Moltiplicatore markup a questa soglia"
+          }
+        }
+      }
     }
   },
   "required": [
