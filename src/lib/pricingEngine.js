@@ -1,18 +1,18 @@
 // Tabella markup scalabile per quantità
-// Penalizza i pochi pezzi (prototipi one-off) e diventa più competitiva sulle produzioni in serie
+// Penalizza i pochi pezzi (prototipi one-off); margini sulle produzioni in serie invariati
 const MARKUP_TABLE = [
   { qty: 1, markup: 4.00 },
   { qty: 10, markup: 3.40 },
-  { qty: 50, markup: 2.80 },
-  { qty: 100, markup: 2.40 },
-  { qty: 200, markup: 2.00 },
-  { qty: 500, markup: 1.70 },
-  { qty: 1000, markup: 1.50 },
-  { qty: 3000, markup: 1.35 },
-  { qty: 5000, markup: 1.28 },
-  { qty: 10000, markup: 1.22 },
-  { qty: 20000, markup: 1.18 },
-  { qty: 50000, markup: 1.15 },
+  { qty: 50, markup: 2.75 },
+  { qty: 100, markup: 2.56 },
+  { qty: 200, markup: 2.31 },
+  { qty: 500, markup: 1.92 },
+  { qty: 1000, markup: 1.60 },
+  { qty: 3000, markup: 1.54 },
+  { qty: 5000, markup: 1.51 },
+  { qty: 10000, markup: 1.47 },
+  { qty: 20000, markup: 1.41 },
+  { qty: 50000, markup: 1.28 },
 ];
 
 export function getMarkup(quantity) {
