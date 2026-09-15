@@ -292,7 +292,14 @@ export default function Quoter() {
       {/* Lines Table */}
       <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full table-fixed">
+            <colgroup>
+              <col className="w-10" />
+              <col span={5} className="w-[8%]" />
+              <col span={5} className="w-[8%]" />
+              <col className="w-[10%]" />
+              <col className="w-10" />
+            </colgroup>
             <thead>
               <tr className="bg-muted/50 border-b border-border">
                 <th className="p-2 text-xs font-medium text-muted-foreground text-center w-10 align-top" rowSpan={2}>#</th>
