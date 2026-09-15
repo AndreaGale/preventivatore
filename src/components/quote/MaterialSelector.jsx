@@ -47,7 +47,7 @@ export default function MaterialSelector({ materials, value, onChange, hint }) {
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-full justify-between text-left font-normal h-9 text-xs">
+        <Button variant="outline" className="w-full justify-between text-left font-normal h-9 text-sm">
           {selected ? (
             <span className="truncate">
               {selected.material_name} - {selected.brand} ({selected.color})
