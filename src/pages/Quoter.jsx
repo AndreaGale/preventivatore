@@ -296,6 +296,7 @@ export default function Quoter() {
                 <th className="p-2 text-xs font-medium text-muted-foreground text-center min-w-[70px]">Qtà</th>
                 <th className="p-2 text-xs font-medium text-muted-foreground text-center min-w-[120px]">Prezzo/pz</th>
                 <th className="p-2 text-xs font-medium text-muted-foreground text-center w-16">Partner</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-center w-16">Cont.</th>
                 <th className="p-2 text-xs font-medium text-muted-foreground text-center min-w-[90px]">Totale</th>
                 <th className="p-2 text-xs font-medium text-muted-foreground text-center min-w-[75px]">Al pz</th>
                 <th className="p-2 w-10"></th>

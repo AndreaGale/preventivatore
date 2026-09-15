@@ -145,7 +145,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         <td className="p-2 text-center">
           <div className="flex flex-col items-center gap-0.5">
             <Checkbox
-              checked={!!line.partner_discount}
+              checked={!!line.partner_discount && !line.continuoativo_discount}
               onCheckedChange={v => update('partner_discount', !!v)}
               className="h-4 w-4"
             />
@@ -153,11 +153,23 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
           </div>
         </td>
 
+        {/* Continuativo */}
+        <td className="p-2 text-center">
+          <div className="flex flex-col items-center gap-0.5">
+            <Checkbox
+              checked={!!line.continuoativo_discount}
+              onCheckedChange={v => update('continuoativo_discount', !!v)}
+              className="h-4 w-4"
+            />
+            <span className="text-[9px] text-muted-foreground">-30%</span>
+          </div>
+        </td>
+
         {/* Totale */}
         <td className="p-2 text-center">
-          {line.partner_discount ? (
+          {calc.discountFactor < 1 ? (
             <div className="flex flex-col items-center">
-              <span className="text-xs font-mono text-muted-foreground line-through">€{(calc.finalPrice / 0.85).toFixed(2)}</span>
+              <span className="text-xs font-mono text-muted-foreground line-through">€{calc.preDiscountTotal.toFixed(2)}</span>
               <span className="text-xs font-mono font-bold text-green-600">€{calc.finalPrice.toFixed(2)}</span>
             </div>
           ) : (
@@ -187,7 +199,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
       {expanded && (
         <tr className="bg-muted/20 border-b border-border">
           <td />
-          <td colSpan={11} className="px-3 py-2">
+          <td colSpan={12} className="px-3 py-2">
             <div className="flex flex-wrap gap-x-6 gap-y-1">
               <CostItem label="Materiale" value={calc.materialCost} />
               <CostItem label="Macchina" value={calc.machineCost} />

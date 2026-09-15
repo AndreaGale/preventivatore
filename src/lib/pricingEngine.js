@@ -161,7 +161,8 @@ export function calculateLinePrice(line, material, config, allMaterials, materia
   const netPrice = costWithFailRate * markup * line.quantity;
   const pricePerUnit = netPrice / line.quantity;
   
-  const discountFactor = line.partner_discount ? 0.85 : 1;
+  // Sconti: "Continuativo" (-30%) prevale su "Partner" (-15%)
+  const discountFactor = line.continuoativo_discount ? 0.70 : line.partner_discount ? 0.85 : 1;
   // manual_price è al pezzo; se impostato, il totale è manual_price * quantity
   const basePriceTotal = line.manual_price ? line.manual_price * line.quantity : netPrice;
   const finalPrice = basePriceTotal * discountFactor;
@@ -178,6 +179,8 @@ export function calculateLinePrice(line, material, config, allMaterials, materia
     netPrice,
     pricePerUnit,
     useManualPrice: !!line.manual_price,
+    discountFactor,
+    preDiscountTotal: basePriceTotal,
     finalPrice,
     finalPricePerUnit: finalPrice / (line.quantity || 1),
   };

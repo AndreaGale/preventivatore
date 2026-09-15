@@ -59,6 +59,14 @@
           },
           "manual_price": {
             "type": "number"
+          },
+          "partner_discount": {
+            "type": "boolean",
+            "description": "Sconto partner -15%"
+          },
+          "continuoativo_discount": {
+            "type": "boolean",
+            "description": "Sconto collaborazione continuativa -30%"
           }
         }
       }
