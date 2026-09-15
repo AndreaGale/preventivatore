@@ -156,9 +156,10 @@ export function calculateLinePrice(line, material, config, allMaterials, materia
   
   const productionCost = materialCost + machineCost + laborCost;
   // Per le collaborazioni continuative il rischio di fallimento è minore:
-  // l'incidenza del fail viene ridotta in proporzione (si mantiene il 30%)
-  const failScale = line.continuoativo_discount ? 0.30 : 1;
-  const costWithFailRate = productionCost * (1 + config.fail_rate) * failScale;
+  // il fail rate viene ridotto in proporzione (se ne mantiene il 30%)
+  const effectiveFailRate = config.fail_rate * (line.continuoativo_discount ? 0.30 : 1);
+  const failAllowance = productionCost * effectiveFailRate;
+  const costWithFailRate = productionCost + failAllowance;
   
   const markup = getMarkup(line.quantity, config.markup_table);
   const netPrice = costWithFailRate * markup * line.quantity;
@@ -177,6 +178,7 @@ export function calculateLinePrice(line, material, config, allMaterials, materia
     machineCost,
     laborCost,
     productionCost,
+    failAllowance,
     costWithFailRate,
     markup,
     netPrice,
