@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Trash2, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import MaterialSelector from './MaterialSelector';
 import { calculateLinePrice } from '@/lib/pricingEngine';
 
-export default function QuoteLineRow({ line, index, materials, config, onChange, onRemove, materialTotals = {} }) {
+export default function QuoteLineRow({ line, index, materials, config, onChange, onRemove, onDuplicate, materialTotals = {} }) {
   const [expanded, setExpanded] = useState(false);
   const hasSubMaterials = line.sub_materials && line.sub_materials.length > 0;
   const material = hasSubMaterials ? null : materials.find(m => m.code === line.material_code);
@@ -50,7 +50,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         </td>
 
         {/* Materiale — largo */}
-        <td className="p-2" colSpan={4}>
+        <td className="p-2" colSpan={5}>
           {hasSubMaterials ? (
             <div className="flex flex-col gap-1">
               {line.sub_materials.map((sm, si) => (
@@ -79,7 +79,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         </td>
 
         {/* Totale */}
-        <td className="p-2 text-center" colSpan={2}>
+        <td className="p-2 text-center" colSpan={1}>
           {calc.discountFactor < 1 ? (
             <div className="flex flex-col items-center">
               <span className="text-[10px] font-mono text-muted-foreground line-through">€{calc.preDiscountTotal.toFixed(2)}</span>
@@ -90,16 +90,28 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
           )}
         </td>
 
-        {/* Elimina */}
+        {/* Azioni */}
         <td className="p-2 align-top" rowSpan={2}>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={() => onRemove(index)}
-          >
-            <Trash2 className="w-3.5 h-3.5 text-destructive" />
-          </Button>
+          <div className="flex flex-col gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => onDuplicate(index)}
+              title="Duplica componente"
+            >
+              <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => onRemove(index)}
+              title="Elimina componente"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+            </Button>
+          </div>
         </td>
       </tr>
 

@@ -126,6 +126,14 @@ export default function Quoter() {
     scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines: updated });
   };
 
+  const duplicateLine = (index) => {
+    const copy = JSON.parse(JSON.stringify(lines[index]));
+    const updated = [...lines];
+    updated.splice(index + 1, 0, copy);
+    setLines(updated);
+    scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines: updated, setupPoints });
+  };
+
   const addLine = () => {
     const updated = [...lines, { ...EMPTY_LINE }];
     setLines(updated);
@@ -289,8 +297,8 @@ export default function Quoter() {
               <tr className="bg-muted/50 border-b border-border">
                 <th className="p-2 text-xs font-medium text-muted-foreground text-center w-10 align-top" rowSpan={2}>#</th>
                 <th className="p-2 text-xs font-medium text-muted-foreground text-left" colSpan={5}>Componente</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-left" colSpan={4}>Materiale</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center" colSpan={2}>Totale</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-left" colSpan={5}>Materiale</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-center" colSpan={1}>Totale</th>
                 <th className="p-2 w-10" rowSpan={2}></th>
               </tr>
               <tr className="bg-muted/50 border-b border-border">
@@ -314,6 +322,7 @@ export default function Quoter() {
                   config={config}
                   onChange={updateLine}
                   onRemove={removeLine}
+                  onDuplicate={duplicateLine}
                   materialTotals={materialTotals}
                 />
               ))}
