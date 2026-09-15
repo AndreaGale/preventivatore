@@ -287,19 +287,21 @@ export default function Quoter() {
           <table className="w-full">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center w-10">#</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-left min-w-[160px]">Componente</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-left min-w-[200px]">Materiale</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center min-w-[90px]">Peso (g)</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center min-w-[100px]">T.Stampa (min)</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center min-w-[90px]">T.MDO (min)</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center min-w-[70px]">Qtà</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center min-w-[120px]">Prezzo/pz</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center w-16">Partner</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center w-16">Cont.</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center min-w-[90px]">Totale</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center min-w-[75px]">Al pz</th>
-                <th className="p-2 w-10"></th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-center w-10 align-top" rowSpan={2}>#</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-left" colSpan={5}>Componente</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-left" colSpan={4}>Materiale</th>
+                <th className="p-2 text-xs font-medium text-muted-foreground text-center" colSpan={2}>Totale</th>
+                <th className="p-2 w-10" rowSpan={2}></th>
+              </tr>
+              <tr className="bg-muted/50 border-b border-border">
+                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">Peso (g)</th>
+                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">T.Stampa (min)</th>
+                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">T.MDO (min)</th>
+                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">Qtà</th>
+                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center" colSpan={2}>Prezzo/pz</th>
+                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">Partner</th>
+                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">Cont.</th>
+                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center" colSpan={3}>Al pz</th>
               </tr>
             </thead>
             <tbody>

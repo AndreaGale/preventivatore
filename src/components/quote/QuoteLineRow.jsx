@@ -19,12 +19,13 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
     onChange(index, { ...line, sub_materials: updated });
   };
 
+  const suggested = (calc.netPrice / (line.quantity || 1)).toFixed(2);
+
   return (
     <>
-      {/* Riga principale */}
+      {/* Riga 1 — identità componente + totale */}
       <tr className="border-b border-border hover:bg-muted/30 transition-colors group">
-        {/* # + expand toggle */}
-        <td className="p-2 text-center">
+        <td className="p-2 text-center align-top" rowSpan={2}>
           <button
             onClick={() => setExpanded(v => !v)}
             className="text-muted-foreground hover:text-foreground transition-colors"
@@ -38,18 +39,18 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
           <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{index + 1}</div>
         </td>
 
-        {/* Componente */}
-        <td className="p-2">
+        {/* Componente — largo */}
+        <td className="p-2" colSpan={5}>
           <Input
             value={line.part_name || ''}
             onChange={e => update('part_name', e.target.value)}
             placeholder="Nome componente"
-            className="h-8 text-xs"
+            className="h-8 text-xs w-full"
           />
         </td>
 
-        {/* Materiale(i) */}
-        <td className="p-2">
+        {/* Materiale — largo */}
+        <td className="p-2" colSpan={4}>
           {hasSubMaterials ? (
             <div className="flex flex-col gap-1">
               {line.sub_materials.map((sm, si) => (
@@ -77,8 +78,35 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
           )}
         </td>
 
+        {/* Totale */}
+        <td className="p-2 text-center" colSpan={2}>
+          {calc.discountFactor < 1 ? (
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] font-mono text-muted-foreground line-through">€{calc.preDiscountTotal.toFixed(2)}</span>
+              <span className="text-xs font-mono font-bold text-green-600">€{calc.finalPrice.toFixed(2)}</span>
+            </div>
+          ) : (
+            <span className="text-xs font-mono font-bold text-primary">€{calc.finalPrice.toFixed(2)}</span>
+          )}
+        </td>
+
+        {/* Elimina */}
+        <td className="p-2 align-top" rowSpan={2}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={() => onRemove(index)}
+          >
+            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+          </Button>
+        </td>
+      </tr>
+
+      {/* Riga 2 — parametri e prezzi */}
+      <tr className="border-b border-border hover:bg-muted/30 transition-colors">
         {/* Peso */}
-        <td className="p-2">
+        <td className="p-1.5">
           {hasSubMaterials ? (
             <span className="text-xs font-mono block text-center text-muted-foreground">{line.weight_g}g</span>
           ) : (
@@ -93,7 +121,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         </td>
 
         {/* T.Stampa */}
-        <td className="p-2">
+        <td className="p-1.5">
           <Input
             type="number"
             value={line.print_time_min || ''}
@@ -104,7 +132,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         </td>
 
         {/* T.MDO */}
-        <td className="p-2">
+        <td className="p-1.5">
           <Input
             type="number"
             value={line.labor_time_min || ''}
@@ -115,7 +143,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         </td>
 
         {/* Qtà */}
-        <td className="p-2">
+        <td className="p-1.5">
           <Input
             type="number"
             value={line.quantity || ''}
@@ -127,22 +155,20 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         </td>
 
         {/* Prezzo manuale */}
-        <td className="p-2">
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-[9px] text-muted-foreground">suggerito: €{(calc.netPrice / (line.quantity || 1)).toFixed(2)}</span>
-            <Input
-              type="number"
-              value={line.manual_price || ''}
-              onChange={e => update('manual_price', parseFloat(e.target.value) || 0)}
-              placeholder={(calc.netPrice / (line.quantity || 1)).toFixed(2)}
-              className="h-8 text-xs w-full font-mono text-center"
-              step="0.01"
-            />
-          </div>
+        <td className="p-1.5" colSpan={2}>
+          <Input
+            type="number"
+            value={line.manual_price || ''}
+            onChange={e => update('manual_price', parseFloat(e.target.value) || 0)}
+            placeholder={suggested}
+            className="h-8 text-xs w-full font-mono text-center"
+            step="0.01"
+            title={`Suggerito: €${suggested}`}
+          />
         </td>
 
         {/* Partner */}
-        <td className="p-2 text-center">
+        <td className="p-1.5 text-center">
           <div className="flex flex-col items-center gap-0.5">
             <Checkbox
               checked={!!line.partner_discount && !line.continuoativo_discount}
@@ -154,7 +180,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         </td>
 
         {/* Continuativo */}
-        <td className="p-2 text-center">
+        <td className="p-1.5 text-center">
           <div className="flex flex-col items-center gap-0.5">
             <Checkbox
               checked={!!line.continuoativo_discount}
@@ -165,50 +191,25 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
           </div>
         </td>
 
-        {/* Totale */}
-        <td className="p-2 text-center">
-          {calc.discountFactor < 1 ? (
-            <div className="flex flex-col items-center">
-              <span className="text-xs font-mono text-muted-foreground line-through">€{calc.preDiscountTotal.toFixed(2)}</span>
-              <span className="text-xs font-mono font-bold text-green-600">€{calc.finalPrice.toFixed(2)}</span>
-            </div>
-          ) : (
-            <span className="text-xs font-mono font-bold text-primary">€{calc.finalPrice.toFixed(2)}</span>
-          )}
-        </td>
-
         {/* Al pz */}
-        <td className="p-2 text-xs font-mono text-center text-muted-foreground whitespace-nowrap">
-          €{calc.finalPricePerUnit.toFixed(2)}
-        </td>
-
-        {/* Elimina */}
-        <td className="p-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={() => onRemove(index)}
-          >
-            <Trash2 className="w-3.5 h-3.5 text-destructive" />
-          </Button>
+        <td className="p-1.5 text-xs font-mono text-center text-muted-foreground whitespace-nowrap" colSpan={3}>
+          €{calc.finalPricePerUnit.toFixed(2)} /pz
         </td>
       </tr>
 
       {/* Riga dettagli costi — visibile solo se expanded */}
       {expanded && (
         <tr className="bg-muted/20 border-b border-border">
-          <td />
-          <td colSpan={12} className="px-3 py-2">
+          <td colSpan={13} className="px-8 py-2">
             <div className="flex flex-wrap gap-x-6 gap-y-1">
               <CostItem label="Materiale" value={calc.materialCost} />
               <CostItem label="Macchina" value={calc.machineCost} />
               <CostItem label="MDO" value={calc.laborCost} />
               <CostItem label="+Fail" value={calc.costWithFailRate} />
               <CostItem label="Markup" value={null} text={`×${calc.markup.toFixed(2)}`} />
+              <CostItem label="Suggerito/pz" value={null} text={`€${suggested}`} />
             </div>
           </td>
-          <td colSpan={2} />
         </tr>
       )}
     </>
