@@ -217,7 +217,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
               <CostItem label="Materiale" value={calc.materialCost} />
               <CostItem label="Macchina" value={calc.machineCost} />
               <CostItem label="MDO" value={calc.laborCost} />
-              <CostItem label="+Fail" value={calc.failAllowance} />
+              <CostItem label="+Fail" value={calc.costWithFailRate} />
               <CostItem label="Markup" value={null} text={`×${calc.markup.toFixed(2)}`} />
               <CostItem label="Suggerito/pz" value={null} text={`€${suggested}`} />
             </div>
