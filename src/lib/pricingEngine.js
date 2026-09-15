@@ -155,7 +155,10 @@ export function calculateLinePrice(line, material, config, allMaterials, materia
   const laborCost = line.labor_time_min * derived.laborCostPerMinute;
   
   const productionCost = materialCost + machineCost + laborCost;
-  const costWithFailRate = productionCost * (1 + config.fail_rate);
+  // Per le collaborazioni continuative il rischio di fallimento è minore:
+  // l'incidenza del fail viene ridotta in proporzione (si mantiene il 30%)
+  const failScale = line.continuoativo_discount ? 0.30 : 1;
+  const costWithFailRate = productionCost * (1 + config.fail_rate) * failScale;
   
   const markup = getMarkup(line.quantity, config.markup_table);
   const netPrice = costWithFailRate * markup * line.quantity;
