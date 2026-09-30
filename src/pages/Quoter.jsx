@@ -128,6 +128,9 @@ export default function Quoter() {
 
   const duplicateLine = (index) => {
     const copy = JSON.parse(JSON.stringify(lines[index]));
+    // La copia ricalcola il prezzo dal motore: il prezzo manuale della riga
+    // originale non deve congelare anche il duplicato
+    copy.manual_price = 0;
     const updated = [...lines];
     updated.splice(index + 1, 0, copy);
     setLines(updated);
