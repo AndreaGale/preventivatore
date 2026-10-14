@@ -259,7 +259,7 @@ export async function buildQuotePdf({ clientName, paymentTerms, date, lines, mat
       const discTxt = row.discountLabel;
       const wDisc = doc.getTextWidth(discTxt);
       const listinoTxt = `${fmtNum(row.unitPre)} €`;
-      doc.text(listinoTxt, ux - wDisc - 2.2, ty + LINE, { strike: true });
+      doc.text(listinoTxt, ux - wDisc - 2.2, ty + LINE, { align: 'right', strike: true });
       doc.text(discTxt, ux, ty + LINE, { align: 'right' });
     }
 
