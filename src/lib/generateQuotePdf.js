@@ -209,7 +209,16 @@ export async function buildQuotePdf({ clientName, paymentTerms, date, lines, mat
       : material ? `${material.material_name}${material.color ? ' ' + material.color : ''}` : '';
 
     const qty = line.quantity || 1;
-    rows.push({ title: line.part_name, sub: matLabel, qty, unit: calc.finalPrice / qty, total: calc.finalPrice });
+    const discountLabel = line.continuoativo_discount ? '-30%' : line.partner_discount ? '-15%' : null;
+    rows.push({
+      title: line.part_name,
+      sub: matLabel,
+      qty,
+      unit: calc.finalPrice / qty,
+      unitPre: calc.preDiscountTotal / qty,
+      discountLabel,
+      total: calc.finalPrice,
+    });
   });
 
   const setupCost = setupPoints * 15;
@@ -226,7 +235,7 @@ export async function buildQuotePdf({ clientName, paymentTerms, date, lines, mat
     const titleLines = doc.splitTextToSize(row.title, descW);
     setFont(doc, 8.5, 'normal');
     const subLines = row.sub ? doc.splitTextToSize(row.sub, descW) : [];
-    const h = ROW_H + (titleLines.length - 1) * LINE + (subLines.length ? subLines.length * 3.6 - 1.2 : 0);
+    const h = ROW_H + (titleLines.length - 1) * LINE + (subLines.length ? subLines.length * 3.6 - 1.2 : 0) + (row.discountLabel ? LINE : 0);
 
     if (y + h > CONTENT_BOTTOM) {
       blueLine(doc, M, y, R);
@@ -242,6 +251,17 @@ export async function buildQuotePdf({ clientName, paymentTerms, date, lines, mat
     doc.text(fmtNum(row.unit), cellX(cols[2]), ty, { align: 'right' });
     doc.text(`${Math.round(VAT * 100)}%`, cellX(cols[3]), ty, { align: 'right' });
     doc.text(fmtEur(row.total), cellX(cols[4]), ty, { align: 'right' });
+
+    // Sconto %: prezzo listino barrato sopra la percentuale applicata
+    if (row.discountLabel) {
+      setFont(doc, 8.5, 'normal', C.muted);
+      const ux = cellX(cols[2]);
+      const discTxt = row.discountLabel;
+      const wDisc = doc.getTextWidth(discTxt);
+      const listinoTxt = `${fmtNum(row.unitPre)} €`;
+      doc.text(listinoTxt, ux - wDisc - 2.2, ty + LINE, { strike: true });
+      doc.text(discTxt, ux, ty + LINE, { align: 'right' });
+    }
 
     if (subLines.length) {
       setFont(doc, 8.5, 'normal', C.muted);
