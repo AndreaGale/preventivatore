@@ -200,13 +200,17 @@ export async function buildQuotePdf({ clientName, paymentTerms, date, lines, mat
     const calc = calculateLinePrice(line, material, config, materials);
     subtotal += calc.finalPrice;
 
+    // Etichetta materiale: solo polimero + colore, mai il brand
+    const materialLabel = (m, fallback) =>
+      m ? `${m.material_name}${m.color ? ' ' + m.color : ''}`.trim() : (fallback || '');
     const hasSubMat = line.sub_materials && line.sub_materials.length > 0;
     const matLabel = hasSubMat
       ? line.sub_materials.map((sm) => {
           const m = materials.find((x) => x.code === sm.material_code);
-          return m ? `${m.material_name} ${m.color || ''}`.trim() : sm.material_code;
+          const fb = sm.filament_type ? `${sm.filament_type}${sm.filament_color ? ' ' + sm.filament_color : ''}`.trim() : '';
+          return materialLabel(m, fb);
         }).join(' + ')
-      : material ? `${material.material_name}${material.color ? ' ' + material.color : ''}` : '';
+      : materialLabel(material);
 
     const qty = line.quantity || 1;
     const discountLabel = line.continuoativo_discount ? '-30%' : line.partner_discount ? '-15%' : null;
