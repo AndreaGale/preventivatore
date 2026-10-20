@@ -184,7 +184,10 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
           <div className="flex flex-col items-center gap-0.5">
             <Checkbox
               checked={!!line.partner_discount && !line.continuoativo_discount}
-              onCheckedChange={v => update('partner_discount', !!v)}
+              onCheckedChange={v => {
+                if (v) onChange(index, { ...line, partner_discount: true, continuoativo_discount: false });
+                else update('partner_discount', false);
+              }}
               className="h-4 w-4"
             />
             <span className="text-[9px] text-muted-foreground">-15%</span>
@@ -196,7 +199,10 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
           <div className="flex flex-col items-center gap-0.5">
             <Checkbox
               checked={!!line.continuoativo_discount}
-              onCheckedChange={v => update('continuoativo_discount', !!v)}
+              onCheckedChange={v => {
+                if (v) onChange(index, { ...line, partner_discount: false, continuoativo_discount: true });
+                else update('continuativo_discount', false);
+              }}
               className="h-4 w-4"
             />
             <span className="text-[9px] text-muted-foreground">-30%</span>
