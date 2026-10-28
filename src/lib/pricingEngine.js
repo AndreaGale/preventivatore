@@ -1,18 +1,19 @@
 // Tabella markup scalabile di default per quantità
 // Penalizza i pochi pezzi (prototipi one-off); margini sulle produzioni in serie invariati
+// Ritarata (×1,0556) dopo il passaggio del costo stampante da €1500 a €700, per mantenere invariati i prezzi di vendita
 export const DEFAULT_MARKUP_TABLE = [
-  { qty: 1, markup: 4.00 },
-  { qty: 10, markup: 3.40 },
-  { qty: 50, markup: 2.75 },
-  { qty: 100, markup: 2.56 },
-  { qty: 200, markup: 2.31 },
-  { qty: 500, markup: 1.92 },
-  { qty: 1000, markup: 1.60 },
-  { qty: 3000, markup: 1.54 },
-  { qty: 5000, markup: 1.51 },
-  { qty: 10000, markup: 1.47 },
-  { qty: 20000, markup: 1.41 },
-  { qty: 50000, markup: 1.28 },
+  { qty: 1, markup: 4.222 },
+  { qty: 10, markup: 3.589 },
+  { qty: 50, markup: 2.903 },
+  { qty: 100, markup: 2.702 },
+  { qty: 200, markup: 2.438 },
+  { qty: 500, markup: 2.027 },
+  { qty: 1000, markup: 1.689 },
+  { qty: 3000, markup: 1.626 },
+  { qty: 5000, markup: 1.594 },
+  { qty: 10000, markup: 1.552 },
+  { qty: 20000, markup: 1.488 },
+  { qty: 50000, markup: 1.351 },
 ];
 
 function resolveTable(customTable) {
@@ -45,7 +46,7 @@ export function computeDefaultConfig() {
     hours_per_day: 8,
     num_printers: 30,
     farm_efficiency: 0.8,
-    printer_cost: 1500,
+    printer_cost: 700,
     printer_lifespan_years: 4,
     maintenance_cost_per_hour: 0.1,
     power_consumption_kw: 0.2,
