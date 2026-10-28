@@ -85,6 +85,18 @@ export function computeDerivedCosts(config) {
  * @param {Array} lines - righe del preventivo
  * @returns {Object} { [material_code]: totalGrams }
  */
+/**
+ * Una riga è valida per il calcolo se ha un nome e almeno un materiale assegnato
+ * (singolo material_code oppure almeno un sub-materiale con material_code).
+ */
+export function isPricedLine(line) {
+  if (!line?.part_name) return false;
+  if (line.sub_materials && line.sub_materials.length > 0) {
+    return line.sub_materials.some(sm => sm.material_code);
+  }
+  return !!line.material_code;
+}
+
 export function computeMaterialTotals(lines) {
   const totals = {};
   for (const line of lines) {

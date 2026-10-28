@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { calculateLinePrice, computeMaterialTotals } from './pricingEngine';
+import { calculateLinePrice, computeMaterialTotals, isPricedLine } from './pricingEngine';
 
 const EUR = (v) => `€${parseFloat(v || 0).toFixed(2)}`;
 const PCT = (v) => `${parseFloat(v || 0).toFixed(1)}%`;
@@ -58,7 +58,7 @@ export function generateCostReportPdf({ clientName, date, lines, materials, conf
 
   // ── Calcoli aggregati ─────────────────────────────────────────────────────────
   const materialTotals = computeMaterialTotals(lines);
-  const validLines = lines.filter(l => l.part_name && l.material_code);
+  const validLines = lines.filter(isPricedLine);
 
   let grandMaterialCost = 0;
   let grandMachineCost = 0;
