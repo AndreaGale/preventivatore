@@ -153,6 +153,9 @@ export default function Quoter() {
 
   const validLines = lines.filter(l => l.part_name && l.material_code);
   const materialTotals = computeMaterialTotals(lines);
+  const totalMaterialGrams = lines
+    .filter(l => l.part_name)
+    .reduce((sum, l) => sum + (l.weight_g || 0) * (l.quantity || 1), 0);
 
   // Cerca il miglior materiale corrispondente al tipo filamento con logica fuzzy a token
   const autoMatchMaterial = (filamentType) => {
@@ -372,6 +375,16 @@ export default function Quoter() {
       {validLines.length > 0 && (
         <div className="max-w-sm ml-auto">
           <QuoteSummary lines={validLines} materials={materials} config={config} materialTotals={materialTotals} setupPoints={setupPoints} />
+        </div>
+      )}
+
+      {/* Totale materiale da utilizzare */}
+      {totalMaterialGrams > 0 && (
+        <div className="max-w-sm ml-auto mt-3 bg-card rounded-xl border border-border px-5 py-3 flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground">Materiale totale da utilizzare</span>
+          <span className="text-sm font-bold font-mono text-foreground">
+            {(totalMaterialGrams / 1000).toFixed(2)} kg
+          </span>
         </div>
       )}
     </div>
