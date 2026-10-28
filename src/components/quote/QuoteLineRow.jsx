@@ -201,7 +201,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
               checked={!!line.continuoativo_discount}
               onCheckedChange={v => {
                 if (v) onChange(index, { ...line, partner_discount: false, continuoativo_discount: true });
-                else update('continuativo_discount', false);
+                else update('continuoativo_discount', false);
               }}
               className="h-4 w-4"
             />

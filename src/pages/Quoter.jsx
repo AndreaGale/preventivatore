@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import QuoteLineRow from '@/components/quote/QuoteLineRow';
 import QuoteSummary from '@/components/quote/QuoteSummary';
 import ThreeMfUpload from '@/components/quote/ThreeMfUpload';
-import { computeDefaultConfig, computeMaterialTotals } from '@/lib/pricingEngine';
+import { computeDefaultConfig, computeMaterialTotals, isPricedLine } from '@/lib/pricingEngine';
 import { useNavigate } from 'react-router-dom';
 import { useRef } from 'react';
 
@@ -151,7 +151,7 @@ export default function Quoter() {
     setLines([{ ...EMPTY_LINE }]);
   };
 
-  const validLines = lines.filter(l => l.part_name && l.material_code);
+  const validLines = lines.filter(isPricedLine);
   const materialTotals = computeMaterialTotals(lines);
   const totalMaterialGrams = lines
     .filter(l => l.part_name)
@@ -241,7 +241,7 @@ export default function Quoter() {
             <FilePlus className="w-4 h-4" />
             Nuovo
           </Button>
-          <Button variant="outline" onClick={() => generateCostReportPdf({ clientName, date: quoteDate, lines: lines.filter(l => l.part_name && l.material_code), materials, config, setupPoints })} className="gap-2">
+          <Button variant="outline" onClick={() => generateCostReportPdf({ clientName, date: quoteDate, lines: validLines, materials, config, setupPoints })} className="gap-2">
             <BarChart2 className="w-4 h-4" />
             Report Costi
           </Button>

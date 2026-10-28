@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { calculateLinePrice } from './pricingEngine';
+import { calculateLinePrice, computeMaterialTotals } from './pricingEngine';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layout ispirato al preventivo ufficiale (Odoo) di 3D ShapeFarm / Materia SRL.
@@ -199,9 +199,11 @@ export async function buildQuotePdf({ clientName, paymentTerms, date, lines, mat
 
   const rows = [];
   let subtotal = 0;
+  // Stessi scaglioni prezzo materiale usati a schermo e nel report costi
+  const materialTotals = computeMaterialTotals(lines);
   lines.filter((l) => l.part_name).forEach((line) => {
     const material = materials.find((m) => m.code === line.material_code);
-    const calc = calculateLinePrice(line, material, config, materials);
+    const calc = calculateLinePrice(line, material, config, materials, materialTotals);
     subtotal += calc.finalPrice;
 
     // Etichetta materiale: solo polimero + colore, mai il brand
