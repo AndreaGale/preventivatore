@@ -45,6 +45,10 @@
       "type": "number",
       "description": "Percentuale fail rate (0-1)"
     },
+    "tax_rate": {
+      "type": "number",
+      "description": "Aliquota imposte stimata sull'utile (0-1), es. IRES + IRAP"
+    },
     "markup_table": {
       "type": "array",
       "description": "Tabella markup scalabile per quantit\u00e0: soglie ordinate per quantit\u00e0 crescente",

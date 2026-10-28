@@ -29,6 +29,7 @@ const FIELDS = [
     { key: 'monthly_gross_salary', label: 'Stipendio Lordo Mensile', unit: '€' },
     { key: 'monthly_work_hours', label: 'Ore Lavorative Mensili', unit: 'h' },
     { key: 'fail_rate', label: 'Fail Rate', unit: '%', isPercent: true },
+    { key: 'tax_rate', label: 'Imposte su utile', unit: '%', isPercent: true, desc: 'IRES + IRAP stimate' },
   ]},
 ];
 
@@ -46,6 +47,7 @@ export default function Configuration() {
   useEffect(() => {
     if (configs.length > 0) {
       setForm({
+        ...defaultConfig,
         ...configs[0],
         markup_table: configs[0].markup_table?.length ? configs[0].markup_table : DEFAULT_MARKUP_TABLE.map(r => ({ ...r })),
       });

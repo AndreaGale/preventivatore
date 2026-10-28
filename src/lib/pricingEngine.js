@@ -54,6 +54,7 @@ export function computeDefaultConfig() {
     monthly_gross_salary: 3000,
     monthly_work_hours: 160,
     fail_rate: 0.07,
+    tax_rate: 0.279,
   };
 }
 
@@ -165,6 +166,14 @@ export function calculateLinePrice(line, material, config, allMaterials, materia
   }
 
   const machineCost = line.print_time_min * derived.machineCostPerMinute;
+  // Scomposizione del costo macchina al pezzo (somma = machineCost)
+  const printHours = (line.print_time_min || 0) / 60;
+  const machineBreakdown = {
+    fixed: printHours * derived.fixedCostPerHour,
+    depreciation: printHours * derived.depreciationPerHour,
+    maintenance: printHours * (config.maintenance_cost_per_hour || 0),
+    energy: printHours * derived.energyCostPerHour,
+  };
   const laborCost = line.labor_time_min * derived.laborCostPerMinute;
   
   const productionCost = materialCost + machineCost + laborCost;
@@ -185,6 +194,7 @@ export function calculateLinePrice(line, material, config, allMaterials, materia
     materialCostPerGram: material?.price_per_gram || 0,
     materialCost,
     machineCost,
+    machineBreakdown,
     laborCost,
     productionCost,
     costWithFailRate,
