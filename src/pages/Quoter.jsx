@@ -7,11 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, FileDown, FilePlus, CheckCircle2, BarChart2 } from 'lucide-react';
 import { generateQuotePdf } from '@/lib/generateQuotePdf';
-import { generateCostReportPdf } from '@/lib/generateCostReportPdf';
+import { generateCostReportPdf, DEFAULT_DEDICATED } from '@/lib/generateCostReportPdf';
 import { toast } from 'sonner';
 import QuoteLineRow from '@/components/quote/QuoteLineRow';
 import QuoteSummary from '@/components/quote/QuoteSummary';
 import ThreeMfUpload from '@/components/quote/ThreeMfUpload';
+import DedicatedScenarioCard from '@/components/quote/DedicatedScenarioCard';
 import { computeDefaultConfig, computeMaterialTotals, isPricedLine } from '@/lib/pricingEngine';
 import { useNavigate } from 'react-router-dom';
 import { useRef } from 'react';
@@ -45,6 +46,7 @@ export default function Quoter() {
   const [lines, setLines] = useState([{ ...EMPTY_LINE }]);
   const [quoteDate, setQuoteDate] = useState(new Date().toISOString().split('T')[0]);
   const [setupPoints, setSetupPoints] = useState(0);
+  const [dedicated, setDedicated] = useState({ ...DEFAULT_DEDICATED });
   const [autoSaved, setAutoSaved] = useState(false);
   const autoSaveTimer = useRef(null);
   const currentIdRef = useRef(editId); // traccia l'id corrente (utile dopo primo salvataggio auto)
@@ -76,6 +78,7 @@ export default function Quoter() {
       setQuoteDate(q.date || new Date().toISOString().split('T')[0]);
       setLines(q.lines && q.lines.length > 0 ? q.lines : [{ ...EMPTY_LINE }]);
       setSetupPoints(q.setup_points || 0);
+      setDedicated({ ...DEFAULT_DEDICATED, ...(q.dedicated_scenario || {}) });
     }
   }, [existingQuote]);
 
@@ -106,6 +109,7 @@ export default function Quoter() {
           payment_terms: data.paymentTerms,
           lines: data.lines.filter(l => l.part_name),
           setup_points: data.setupPoints ?? setupPoints,
+          dedicated_scenario: data.dedicated ?? dedicated,
           status: 'bozza',
         });
       }
@@ -149,6 +153,8 @@ export default function Quoter() {
     setPaymentTerms(PAYMENT_TERMS[0]);
     setQuoteDate(new Date().toISOString().split('T')[0]);
     setLines([{ ...EMPTY_LINE }]);
+    setSetupPoints(0);
+    setDedicated({ ...DEFAULT_DEDICATED });
   };
 
   const validLines = lines.filter(isPricedLine);
@@ -241,7 +247,7 @@ export default function Quoter() {
             <FilePlus className="w-4 h-4" />
             Nuovo
           </Button>
-          <Button variant="outline" onClick={() => generateCostReportPdf({ clientName, date: quoteDate, lines: validLines, materials, config, setupPoints })} className="gap-2">
+          <Button variant="outline" onClick={() => generateCostReportPdf({ clientName, date: quoteDate, lines: validLines, materials, config, setupPoints, dedicated })} className="gap-2">
             <BarChart2 className="w-4 h-4" />
             Report Costi
           </Button>
@@ -370,6 +376,15 @@ export default function Quoter() {
           >+</button>
         </div>
       </div>
+
+      <DedicatedScenarioCard
+        value={dedicated}
+        onChange={(v) => { setDedicated(v); scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines, setupPoints, dedicated: v }); }}
+        lines={validLines}
+        materials={materials}
+        config={config}
+        setupPoints={setupPoints}
+      />
 
       {/* Summary */}
       {validLines.length > 0 && (

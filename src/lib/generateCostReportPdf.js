@@ -47,7 +47,9 @@ const marginColor = (pct) => (pct >= 20 ? C.green : pct >= 10 ? C.yellow : C.red
  * la parte sui costi fissi (ore macchina consumate dalle ristampe) resta dentro le voci fisse.
  * Somma costi variabili + costi fissi = costo di produzione con fail rate (motore prezzi).
  */
-export function buildCostReport({ lines, materials, config, setupPoints = 0 }) {
+export const DEFAULT_DEDICATED = { enabled: false, printers: 20, hours_per_day: 24, writeoff: true };
+
+export function buildCostReport({ lines, materials, config, setupPoints = 0, dedicated = null }) {
   const fail = config?.fail_rate ?? 0.07;
   const taxRate = config?.tax_rate ?? 0.279;
   const materialTotals = computeMaterialTotals(lines);
@@ -121,12 +123,57 @@ export function buildCostReport({ lines, materials, config, setupPoints = 0 }) {
   const farmHoursPerDay = (config?.num_printers || 0) * (config?.hours_per_day || 0) * (config?.farm_efficiency || 1);
   t.farmDays = farmHoursPerDay > 0 ? t.printHours / farmHoursPerDay : 0;
 
-  return { rows, totals: t, fail, taxRate };
+  return { rows, totals: t, fail, taxRate, scenario: computeDedicatedScenario(t, config, taxRate, dedicated) };
+}
+
+/**
+ * Scenario "macchine dedicate": l'ordine gira su stampanti nuove comprate apposta.
+ * I costi fissi esistenti sono già coperti dalla produzione attuale (quota = 0);
+ * all'ordine si imputa il costo delle macchine nuove (tutto, oppure solo l'usura delle ore usate).
+ */
+export function computeDedicatedScenario(t, config, taxRate, dedicated) {
+  if (!dedicated?.enabled) return null;
+  const printers = Math.max(0, dedicated.printers || 0);
+  const hpd = Math.max(0, dedicated.hours_per_day || 0);
+  const days = config?.working_days_per_month || 25;
+  const eff = config?.farm_efficiency || 1;
+  const printerCost = config?.printer_cost || 0;
+  const lifeHours = (config?.printer_lifespan_years || 4) * 12 * days * (config?.hours_per_day || 8);
+
+  const purchase = printers * printerCost;
+  const wear = lifeHours > 0 ? t.printHours * (printerCost / lifeHours) : 0;
+  const machineCost = dedicated.writeoff ? purchase : Math.min(wear, purchase);
+
+  const operatingProfit = t.grossMargin - machineCost;
+  const taxes = Math.max(0, operatingProfit) * taxRate;
+  const netProfit = operatingProfit - taxes;
+
+  const monthlyCapacity = printers * hpd * days * eff;
+  const months = monthlyCapacity > 0 ? t.printHours / monthlyCapacity : Infinity;
+
+  // Quanto si può scendere di prezzo (sui componenti) mantenendo lo stesso utile del caso standard
+  const extraProfit = operatingProfit - t.operatingProfit;
+  const maxDiscount = Math.max(0, extraProfit);
+  const maxDiscountPct = t.components > 0 ? (maxDiscount / t.components) * 100 : 0;
+  const maxDiscountPerPiece = t.pieces > 0 ? maxDiscount / t.pieces : 0;
+
+  // Effetto sui preventivi futuri se le macchine restano in farm
+  const curPrinters = config?.num_printers || 0;
+  const fixedPerHourNow = (config?.monthly_fixed_costs || 0) / (days * (config?.hours_per_day || 8) * curPrinters * eff || 1);
+  const fixedPerHourAfter = (config?.monthly_fixed_costs || 0) / (days * (config?.hours_per_day || 8) * (curPrinters + printers) * eff || 1);
+
+  return {
+    printers, hpd, days, eff, writeoff: !!dedicated.writeoff,
+    purchase, wear, machineCost,
+    operatingProfit, taxes, netProfit,
+    months, maxDiscount, maxDiscountPct, maxDiscountPerPiece,
+    curPrinters, fixedPerHourNow, fixedPerHourAfter,
+  };
 }
 
 // ── PDF ─────────────────────────────────────────────────────────────────────────
-export function generateCostReportPdf({ clientName, date, lines, materials, config, setupPoints = 0 }) {
-  const { rows, totals: t, fail, taxRate } = buildCostReport({ lines, materials, config, setupPoints });
+export function generateCostReportPdf({ clientName, date, lines, materials, config, setupPoints = 0, dedicated = null }) {
+  const { rows, totals: t, fail, taxRate, scenario: sc } = buildCostReport({ lines, materials, config, setupPoints, dedicated });
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
@@ -333,6 +380,106 @@ export function generateCostReportPdf({ clientName, date, lines, materials, conf
   });
 
   y = Math.max(ceBottom, sy) + 8;
+
+  // ── Scenario macchine dedicate ──────────────────────────────────────────────
+  if (sc) {
+    ensureSpace(96);
+    setFont(doc, 9, 'bold', C.dark);
+    doc.text(`Scenario: ${fmtNum(sc.printers, 0)} macchine dedicate a questo ordine`, M, y);
+    setFont(doc, 6, 'normal', C.gray);
+    doc.text(
+      sc.writeoff
+        ? `Costo macchine nuove tutto su questo ordine (${fmtNum(sc.printers, 0)} × ${EUR(config?.printer_cost || 0)}). Costi fissi esistenti già coperti dalla produzione attuale.`
+        : `Macchine nuove che restano in farm: a questo ordine solo l'usura delle ore usate. Costi fissi esistenti già coperti dalla produzione attuale.`,
+      M, y + 4,
+    );
+    y += 7;
+
+    const scW = 128;
+    const cLabel = M + 3;
+    const cStd = M + scW - 40;
+    const cDed = M + scW - 3;
+    doc.setFillColor(...C.dark);
+    doc.rect(M, y, scW, 5.5, 'F');
+    setFont(doc, 6, 'bold', C.white);
+    doc.text('Voce', cLabel, y + 3.8);
+    doc.text('Farm condivisa', cStd, y + 3.8, { align: 'right' });
+    doc.text('Macchine dedicate', cDed, y + 3.8, { align: 'right' });
+    y += 5.5;
+
+    const pctOf = (v) => (t.revenue > 0 ? ` (${PCT((v / t.revenue) * 100)})` : '');
+    const scRows = [
+      ['Ricavo netto', EUR(t.revenue), EUR(t.revenue)],
+      ['Costi variabili', EUR(t.variable), EUR(t.variable)],
+      ['Margine lordo', EUR(t.grossMargin), EUR(t.grossMargin), 'total'],
+      ['Quota costi fissi esistenti', EUR(t.fixed), EUR(0)],
+      ['Macchine nuove', '—', EUR(sc.machineCost)],
+      ['Utile ante imposte', EUR(t.operatingProfit), EUR(sc.operatingProfit), 'total'],
+      ['Imposte stimate', `- ${EUR(t.taxes)}`, `- ${EUR(sc.taxes)}`],
+      ['UTILE NETTO — IN TASCA', EUR(t.netProfit) + pctOf(t.netProfit), EUR(sc.netProfit) + pctOf(sc.netProfit), 'result'],
+    ];
+    scRows.forEach(([label, a, b, kind]) => {
+      const rh = kind ? 6.2 : 5.3;
+      if (kind === 'result') {
+        doc.setFillColor(...profitColor(sc.netProfit));
+        doc.rect(M, y, scW, rh, 'F');
+        setFont(doc, 7, 'bold', C.white);
+      } else if (kind === 'total') {
+        doc.setFillColor(...C.border);
+        doc.rect(M, y, scW, rh, 'F');
+        setFont(doc, 7, 'bold', C.dark);
+      } else {
+        setFont(doc, 6.8, 'normal', C.dark);
+        hLine(doc, M + 3, y + rh, M + scW, C.light);
+      }
+      const ty = y + rh / 2 + 1.2;
+      doc.text(label, cLabel, ty);
+      doc.text(a, cStd, ty, { align: 'right' });
+      doc.text(b, cDed, ty, { align: 'right' });
+      y += rh;
+    });
+
+    // Box laterali: tempi e competitività
+    const bx = M + scW + 6;
+    const bw = pageW - M - bx;
+    let by = y - 5.5 - scRows.reduce((a, r) => a + (r[3] ? 6.2 : 5.3), 0);
+    const box = (title, big, body, color) => {
+      const wrapped = doc.splitTextToSize(body, bw - 6);
+      const h = 14 + wrapped.length * 2.8;
+      doc.setFillColor(...C.light);
+      doc.roundedRect(bx, by, bw, h, 2, 2, 'F');
+      setFont(doc, 6, 'bold', C.gray);
+      doc.text(title, bx + 3, by + 5);
+      setFont(doc, 11, 'bold', color);
+      doc.text(big, bx + 3, by + 11);
+      setFont(doc, 6, 'normal', C.gray);
+      doc.text(wrapped, bx + 3, by + 15);
+      by += h + 3;
+    };
+    box(
+      'DURATA PRODUZIONE',
+      Number.isFinite(sc.months) ? `${fmtNum(sc.months, 1)} mesi` : '—',
+      `${fmtNum(t.printHours, 0)} h macchina su ${fmtNum(sc.printers, 0)} stampanti, ${fmtNum(sc.hpd, 0)} h/giorno, ${fmtNum(sc.days, 0)} gg/mese, efficienza ${fmtNum(sc.eff * 100, 0)}%.`,
+      C.dark,
+    );
+    box(
+      'MARGINE PER ESSERE PIÙ COMPETITIVO',
+      sc.maxDiscount > 0 ? `fino a -${PCT(sc.maxDiscountPct)}` : 'nessuno',
+      sc.maxDiscount > 0
+        ? `Puoi scontare fino a ${EUR(sc.maxDiscount)} (${EUR(sc.maxDiscountPerPiece)}/pz) e guadagnare comunque quanto nel caso farm condivisa.`
+        : `Con questi parametri le macchine nuove costano più della quota di costi fissi risparmiata.`,
+      sc.maxDiscount > 0 ? C.green : C.red,
+    );
+    if (sc.curPrinters > 0) {
+      box(
+        'SE LE MACCHINE RESTANO IN FARM',
+        `da € ${fmtNum(sc.fixedPerHourNow, 2)} a € ${fmtNum(sc.fixedPerHourAfter, 2)}/h`,
+        `Costo fisso per ora macchina passando da ${fmtNum(sc.curPrinters, 0)} a ${fmtNum(sc.curPrinters + sc.printers, 0)} stampanti: vale per tutti i preventivi futuri, se le macchine restano occupate e i costi fissi non salgono.`,
+        C.dark,
+      );
+    }
+    y = Math.max(y, by) + 6;
+  }
 
   // ── Dettaglio per componente ────────────────────────────────────────────────
   const cols = [

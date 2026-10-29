@@ -34,6 +34,16 @@
       "description": "Punti attrezzaggio e preparazione file (15\u20ac/punto)",
       "default": 0
     },
+    "dedicated_scenario": {
+      "type": "object",
+      "description": "Scenario macchine dedicate per il report costi",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "printers": { "type": "number", "description": "Stampanti nuove dedicate all'ordine" },
+        "hours_per_day": { "type": "number", "description": "Ore di lavoro al giorno delle macchine dedicate" },
+        "writeoff": { "type": "boolean", "description": "true = costo macchine tutto sull'ordine; false = solo usura ore usate" }
+      }
+    },
     "lines": {
       "type": "array",
       "items": {
