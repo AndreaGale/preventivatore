@@ -48,7 +48,7 @@ export default function DedicatedScenarioCard({ value, onChange, lines, material
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
               <Stat label="Utile netto farm condivisa" value={eur(t.netProfit)} />
               <Stat label="Utile netto macchine dedicate" value={eur(sc.netProfit)} strong positive={sc.netProfit >= 0} />
-              <Stat label="Durata produzione" value={Number.isFinite(sc.months) ? `${sc.months.toLocaleString('it-IT', { maximumFractionDigits: 1 })} mesi` : '—'} />
+              <Stat label="Durata produzione" value={sc.durationLabel} />
               <Stat
                 label="Sconto possibile a pari utile"
                 value={sc.maxDiscount > 0 ? `-${sc.maxDiscountPct.toLocaleString('it-IT', { maximumFractionDigits: 1 })}% (€${sc.maxDiscountPerPiece.toFixed(2)}/pz)` : 'nessuno'}

@@ -47,6 +47,22 @@ const marginColor = (pct) => (pct >= 20 ? C.green : pct >= 10 ? C.yellow : C.red
  * la parte sui costi fissi (ore macchina consumate dalle ristampe) resta dentro le voci fisse.
  * Somma costi variabili + costi fissi = costo di produzione con fail rate (motore prezzi).
  */
+/**
+ * Durata in giorni lavorativi e settimane di calendario.
+ * Le settimane tengono conto dei giorni lavorativi al mese (es. 25 gg/mese ≈ 5,8 gg/settimana).
+ */
+export function formatDuration(workDays, daysPerMonth = 25) {
+  if (!Number.isFinite(workDays) || workDays <= 0) return '—';
+  const days = Math.ceil(workDays);
+  const daysPerWeek = (daysPerMonth * 12) / 52;
+  const weeks = workDays / daysPerWeek;
+  const dayLabel = days === 1 ? '1 giorno lavorativo' : `${days} giorni lavorativi`;
+  if (weeks < 1) return dayLabel;
+  const w = Math.round(weeks * 2) / 2; // arrotonda alla mezza settimana
+  const wStr = Number.isInteger(w) ? String(w) : String(w).replace('.', ',');
+  return `${dayLabel} (~${wStr} ${w === 1 ? 'settimana' : 'settimane'})`;
+}
+
 export const DEFAULT_DEDICATED = { enabled: false, printers: 20, hours_per_day: 24, writeoff: true };
 
 export function buildCostReport({ lines, materials, config, setupPoints = 0, dedicated = null }) {
@@ -150,6 +166,9 @@ export function computeDedicatedScenario(t, config, taxRate, dedicated) {
 
   const monthlyCapacity = printers * hpd * days * eff;
   const months = monthlyCapacity > 0 ? t.printHours / monthlyCapacity : Infinity;
+  const dailyCapacity = printers * hpd * eff;
+  const workDays = dailyCapacity > 0 ? t.printHours / dailyCapacity : Infinity;
+  const durationLabel = formatDuration(workDays, days);
 
   // Quanto si può scendere di prezzo (sui componenti) mantenendo lo stesso utile del caso standard
   const extraProfit = operatingProfit - t.operatingProfit;
@@ -166,7 +185,7 @@ export function computeDedicatedScenario(t, config, taxRate, dedicated) {
     printers, hpd, days, eff, writeoff: !!dedicated.writeoff,
     purchase, wear, machineCost,
     operatingProfit, taxes, netProfit,
-    months, maxDiscount, maxDiscountPct, maxDiscountPerPiece,
+    months, workDays, durationLabel, maxDiscount, maxDiscountPct, maxDiscountPerPiece,
     curPrinters, fixedPerHourNow, fixedPerHourAfter,
   };
 }
@@ -444,21 +463,25 @@ export function generateCostReportPdf({ clientName, date, lines, materials, conf
     const bw = pageW - M - bx;
     let by = y - 5.5 - scRows.reduce((a, r) => a + (r[3] ? 6.2 : 5.3), 0);
     const box = (title, big, body, color) => {
+      setFont(doc, 6, 'normal', C.gray);
       const wrapped = doc.splitTextToSize(body, bw - 6);
-      const h = 14 + wrapped.length * 2.8;
+      setFont(doc, 11, 'bold', color);
+      const bigLines = doc.splitTextToSize(big, bw - 6);
+      const extra = (bigLines.length - 1) * 4.6;
+      const h = 14 + extra + wrapped.length * 2.8;
       doc.setFillColor(...C.light);
       doc.roundedRect(bx, by, bw, h, 2, 2, 'F');
       setFont(doc, 6, 'bold', C.gray);
       doc.text(title, bx + 3, by + 5);
       setFont(doc, 11, 'bold', color);
-      doc.text(big, bx + 3, by + 11);
+      doc.text(bigLines, bx + 3, by + 11);
       setFont(doc, 6, 'normal', C.gray);
-      doc.text(wrapped, bx + 3, by + 15);
+      doc.text(wrapped, bx + 3, by + 15 + extra);
       by += h + 3;
     };
     box(
       'DURATA PRODUZIONE',
-      Number.isFinite(sc.months) ? `${fmtNum(sc.months, 1)} mesi` : '—',
+      sc.durationLabel,
       `${fmtNum(t.printHours, 0)} h macchina su ${fmtNum(sc.printers, 0)} stampanti, ${fmtNum(sc.hpd, 0)} h/giorno, ${fmtNum(sc.days, 0)} gg/mese, efficienza ${fmtNum(sc.eff * 100, 0)}%.`,
       C.dark,
     );
