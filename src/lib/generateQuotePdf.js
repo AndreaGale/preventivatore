@@ -141,10 +141,6 @@ export async function buildQuotePdf({ clientName, paymentTerms, date, lines, mat
     return 45;
   };
 
-  const totalGrams = lines
-    .filter((l) => l.part_name)
-    .reduce((sum, l) => sum + (l.weight_g || 0) * (l.quantity || 1), 0);
-
   drawPageFrame(doc, assets);
 
   // ── Cliente ────────────────────────────────────────────────────────────────
@@ -290,7 +286,7 @@ export async function buildQuotePdf({ clientName, paymentTerms, date, lines, mat
   setFont(doc, BODY, 'normal');
   const noteLines = notes.flatMap((n) => doc.splitTextToSize(n, R - M - 10.8));
   const totalsH = 3 * 9.1;
-  const notesH = 9.6 + noteLines.length * LINE + 6 + (totalGrams > 0 ? 6 : 0);
+  const notesH = 9.6 + noteLines.length * LINE + 6;
   if (y + totalsH + notesH > CONTENT_BOTTOM) y = newPage();
 
   const tX = 146.6, tSplit = 172.0;
@@ -314,15 +310,6 @@ export async function buildQuotePdf({ clientName, paymentTerms, date, lines, mat
     y += 9.1;
   });
   blueLine(doc, left, y, R);
-
-  // ── Totale materiale ───────────────────────────────────────────────────────
-  if (totalGrams > 0) {
-    y += 6;
-    setFont(doc, BODY, 'normal', C.muted);
-    doc.text('Materiale totale da utilizzare', M, y + ASC);
-    setFont(doc, BODY, 'bold', C.text);
-    doc.text(`${fmtNum(totalGrams / 1000)} kg`, R, y + ASC, { align: 'right' });
-  }
 
   // ── Condizioni ─────────────────────────────────────────────────────────────
   y += 4.2;
