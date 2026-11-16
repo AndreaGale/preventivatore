@@ -3,13 +3,12 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, FileDown, FilePlus, CheckCircle2, BarChart2 } from 'lucide-react';
+import { Plus, FileDown, FilePlus, CheckCircle2, BarChart2, FileBox } from 'lucide-react';
 import { generateQuotePdf } from '@/lib/generateQuotePdf';
 import { generateCostReportPdf, DEFAULT_DEDICATED } from '@/lib/generateCostReportPdf';
 import { toast } from 'sonner';
-import QuoteLineRow from '@/components/quote/QuoteLineRow';
+import QuoteLineCard from '@/components/quote/QuoteLineCard';
 import QuoteSummary from '@/components/quote/QuoteSummary';
 import ThreeMfUpload from '@/components/quote/ThreeMfUpload';
 import DedicatedScenarioCard from '@/components/quote/DedicatedScenarioCard';
@@ -98,55 +97,71 @@ export default function Quoter() {
     },
   });
 
-  // Autosave con debounce 1.5s, solo se c'è almeno il nome cliente
-  const scheduleAutoSave = (data) => {
+  // ── Autosave: ogni modifica fatta dall'utente segna "dirty"; si salva 1,2 s dopo l'ultima ──
+  const dirty = useRef(false);
+  const edit = (fn) => { dirty.current = true; fn(); };
+
+  useEffect(() => {
+    if (!dirty.current) return;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
-      if (data.clientName.trim()) {
-        saveMutation.mutate({
-          client_name: data.clientName,
-          date: data.quoteDate,
-          payment_terms: data.paymentTerms,
-          lines: data.lines.filter(l => l.part_name),
-          setup_points: data.setupPoints ?? setupPoints,
-          dedicated_scenario: data.dedicated ?? dedicated,
-          status: 'bozza',
-        });
-      }
-    }, 1500);
-  };
+      if (!clientName.trim()) return;
+      saveMutation.mutate({
+        client_name: clientName,
+        date: quoteDate,
+        payment_terms: paymentTerms,
+        lines: lines.filter((l) => l.part_name),
+        setup_points: setupPoints,
+        dedicated_scenario: dedicated,
+        status: 'bozza',
+      });
+    }, 1200);
+    return () => clearTimeout(autoSaveTimer.current);
+  }, [clientName, quoteDate, paymentTerms, lines, setupPoints, dedicated]);
 
-  const updateLine = (index, newLine) => {
-    const updated = [...lines];
-    updated[index] = newLine;
-    setLines(updated);
-    scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines: updated, setupPoints });
-  };
+  const [focusIndex, setFocusIndex] = useState(null);
+
+  const updateLine = (index, newLine) => edit(() => setLines((prev) => prev.map((l, i) => (i === index ? newLine : l))));
 
   const removeLine = (index) => {
     if (lines.length === 1) return;
-    const updated = lines.filter((_, i) => i !== index);
-    setLines(updated);
-    scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines: updated });
+    edit(() => setLines((prev) => prev.filter((_, i) => i !== index)));
   };
 
-  const duplicateLine = (index) => {
-    const copy = JSON.parse(JSON.stringify(lines[index]));
-    // La copia ricalcola il prezzo dal motore: il prezzo manuale della riga
-    // originale non deve congelare anche il duplicato
-    copy.manual_price = 0;
-    const updated = [...lines];
-    updated.splice(index + 1, 0, copy);
-    setLines(updated);
-    scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines: updated, setupPoints });
-  };
+  const duplicateLine = (index) => edit(() => {
+    // La copia ricalcola il prezzo dal motore: il prezzo manuale dell'originale non va copiato
+    const copy = { ...JSON.parse(JSON.stringify(lines[index])), manual_price: 0 };
+    setLines((prev) => [...prev.slice(0, index + 1), copy, ...prev.slice(index + 1)]);
+    setFocusIndex(index + 1);
+  });
 
-  const addLine = () => {
-    const updated = [...lines, { ...EMPTY_LINE }];
-    setLines(updated);
-  };
+  // Nuova riga: eredita materiale, sconto e manodopera dall'ultima, così si compila più in fretta
+  const addLine = () => edit(() => {
+    const last = lines[lines.length - 1];
+    const inherited = last && !last.sub_materials?.length
+      ? {
+          material_code: last.material_code || '',
+          labor_time_min: last.labor_time_min || 0,
+          quantity: last.quantity || 1,
+          partner_discount: !!last.partner_discount,
+          continuoativo_discount: !!last.continuoativo_discount,
+        }
+      : {};
+    setLines((prev) => [...prev, { ...EMPTY_LINE, ...inherited }]);
+    setFocusIndex(lines.length);
+  });
+
+  // Ctrl/⌘ + Invio aggiunge un componente da qualsiasi campo
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); addLine(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const handleNewQuote = () => {
+    dirty.current = false;
     currentIdRef.current = null;
     window.history.replaceState(null, '', '/');
     setClientName('');
@@ -155,6 +170,7 @@ export default function Quoter() {
     setLines([{ ...EMPTY_LINE }]);
     setSetupPoints(0);
     setDedicated({ ...DEFAULT_DEDICATED });
+    setFocusIndex(0);
   };
 
   const validLines = lines.filter(isPricedLine);
@@ -220,6 +236,7 @@ export default function Quoter() {
         };
       }
     });
+    dirty.current = true;
     setLines(prev => {
       const hasOnlyEmpty = prev.length === 1 && !prev[0].part_name && !prev[0].material_code;
       return hasOnlyEmpty ? newLines : [...prev, ...newLines];
@@ -227,181 +244,136 @@ export default function Quoter() {
     toast.success(`${importedLines.length} componenti importati`);
   };
 
+  const [showImport, setShowImport] = useState(false);
+  const exportCostReport = () => generateCostReportPdf({ clientName, date: quoteDate, lines: validLines, materials, config, setupPoints, dedicated });
+  const exportClientPdf = () => generateQuotePdf({ clientName, paymentTerms, date: quoteDate, lines, materials, config, setupPoints });
+
   return (
-    <div className="p-6 lg:p-8 max-w-full">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            {editId ? `Preventivo — ${clientName || '...'}` : 'Nuovo Preventivo'}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">Calcola il prezzo di vendita dei tuoi prodotti 3D</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {autoSaved && (
-            <span className="flex items-center gap-1 text-xs text-green-600">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-[1500px]">
+      {/* Testata: cliente, data, pagamento, azioni */}
+      <header className="flex flex-col xl:flex-row xl:items-end gap-4 mb-6">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-muted-foreground mb-1 flex items-center gap-2">
+            {editId || currentIdRef.current ? 'Preventivo' : 'Nuovo preventivo'}
+            <span className="text-[hsl(var(--success))] flex items-center gap-1 transition-opacity" style={{ opacity: autoSaved ? 1 : 0 }} aria-live="polite">
               <CheckCircle2 className="w-3.5 h-3.5" /> Salvato
             </span>
-          )}
-          <Button variant="outline" onClick={handleNewQuote} className="gap-2">
-            <FilePlus className="w-4 h-4" />
-            Nuovo
-          </Button>
-          <Button variant="outline" onClick={() => generateCostReportPdf({ clientName, date: quoteDate, lines: validLines, materials, config, setupPoints, dedicated })} className="gap-2">
-            <BarChart2 className="w-4 h-4" />
-            Report Costi
-          </Button>
-          <Button variant="outline" onClick={() => generateQuotePdf({ clientName, paymentTerms, date: quoteDate, lines, materials, config, setupPoints })} className="gap-2">
-            <FileDown className="w-4 h-4" />
-            Esporta PDF
-          </Button>
-        </div>
-      </div>
-
-      {/* 3MF Upload */}
-      <div className="bg-card rounded-xl border border-border p-5 mb-6">
-        <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Importa da file .3mf</p>
-        <ThreeMfUpload onImport={handleImport} />
-      </div>
-
-      {/* Client Info */}
-      <div className="bg-card rounded-xl border border-border p-5 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Label className="text-xs font-medium text-muted-foreground mb-1.5 block">Cliente</Label>
-            <Input
+            {!clientName.trim() && lines.some((l) => l.part_name) && (
+              <span className="text-amber-700">Inserisci il cliente per salvare</span>
+            )}
+          </p>
+          <h1 className="m-0">
+            <input
               value={clientName}
-              onChange={e => { setClientName(e.target.value); scheduleAutoSave({ clientName: e.target.value, quoteDate, paymentTerms, lines }); }}
+              onChange={(e) => edit(() => setClientName(e.target.value))}
               placeholder="Nome cliente"
-              className="h-9"
+              aria-label="Cliente"
+              className="w-full bg-transparent text-2xl md:text-3xl font-bold outline-none border-b-2 border-transparent hover:border-border focus:border-primary placeholder:text-muted-foreground/50 pb-0.5"
+              style={{ fontStretch: '115%' }}
             />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-muted-foreground mb-1.5 block">Data</Label>
-            <Input
-              type="date"
-              value={quoteDate}
-              onChange={e => { setQuoteDate(e.target.value); scheduleAutoSave({ clientName, quoteDate: e.target.value, paymentTerms, lines }); }}
-              className="h-9"
-            />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-muted-foreground mb-1.5 block">Pagamento</Label>
-            <Select value={paymentTerms} onValueChange={v => { setPaymentTerms(v); scheduleAutoSave({ clientName, quoteDate, paymentTerms: v, lines }); }}>
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_TERMS.map(t => (
-                  <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          </h1>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-muted-foreground">Data</span>
+              <Input type="date" value={quoteDate} onChange={(e) => edit(() => setQuoteDate(e.target.value))} className="h-9 w-40" />
+            </label>
+            <label className="flex flex-col gap-1 min-w-[16rem]">
+              <span className="text-[11px] text-muted-foreground">Pagamento</span>
+              <Select value={paymentTerms} onValueChange={(v) => edit(() => setPaymentTerms(v))}>
+                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_TERMS.map((t) => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </label>
           </div>
         </div>
-      </div>
-
-      {/* Lines Table */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed">
-            <colgroup>
-              <col className="w-10" />
-              <col span={5} className="w-[8%]" />
-              <col span={5} className="w-[8%]" />
-              <col className="w-[10%]" />
-              <col className="w-10" />
-            </colgroup>
-            <thead>
-              <tr className="bg-muted/50 border-b border-border">
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center w-10 align-top" rowSpan={2}>#</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-left" colSpan={5}>Componente</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-left" colSpan={5}>Materiale</th>
-                <th className="p-2 text-xs font-medium text-muted-foreground text-center" colSpan={1}>Totale</th>
-                <th className="p-2 w-10" rowSpan={2}></th>
-              </tr>
-              <tr className="bg-muted/50 border-b border-border">
-                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">Peso (g)</th>
-                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center" colSpan={2}>Tempo stampa</th>
-                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">T.MDO (min)</th>
-                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">Qtà</th>
-                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center" colSpan={2}>Prezzo/pz</th>
-                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">Partner</th>
-                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">Cont.</th>
-                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center" colSpan={2}>Al pz</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map((line, i) => (
-                <QuoteLineRow
-                  key={i}
-                  line={line}
-                  index={i}
-                  materials={materials}
-                  config={config}
-                  onChange={updateLine}
-                  onRemove={removeLine}
-                  onDuplicate={duplicateLine}
-                  materialTotals={materialTotals}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="p-3 border-t border-border">
-          <Button variant="ghost" size="sm" onClick={addLine} className="text-xs gap-1.5 text-muted-foreground hover:text-foreground">
-            <Plus className="w-3.5 h-3.5" />
-            Aggiungi riga
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" onClick={handleNewQuote} className="gap-2">
+            <FilePlus className="w-4 h-4" /> Nuovo
+          </Button>
+          <Button variant="outline" onClick={exportCostReport} disabled={validLines.length === 0} className="gap-2">
+            <BarChart2 className="w-4 h-4" /> Report costi
+          </Button>
+          <Button onClick={exportClientPdf} disabled={validLines.length === 0} className="gap-2">
+            <FileDown className="w-4 h-4" /> PDF per il cliente
           </Button>
         </div>
-      </div>
+      </header>
 
-      {/* Attrezzaggio */}
-      <div className="bg-card rounded-xl border border-border p-5 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-foreground">Attrezzaggio e preparazione file</p>
-          <p className="text-xs text-muted-foreground mt-0.5">€15,00 per punto — totale: <span className="font-mono font-semibold text-foreground">€{(setupPoints * 15).toFixed(2)}</span></p>
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_20rem] gap-6 items-start">
+        {/* Componenti */}
+        <div className="space-y-3 min-w-0 qf-list">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">
+              Componenti <span className="text-muted-foreground font-normal tabular-nums">{lines.filter((l) => l.part_name).length}</span>
+            </h2>
+            <Button variant="outline" size="sm" onClick={() => setShowImport((v) => !v)} className="gap-2" aria-expanded={showImport}>
+              <FileBox className="w-4 h-4" /> Importa da .3mf
+            </Button>
+          </div>
+
+          {showImport && (
+            <div className="qf-panel p-4">
+              <ThreeMfUpload onImport={(rows) => { handleImport(rows); setShowImport(false); }} />
+            </div>
+          )}
+
+          {lines.map((line, i) => (
+            <QuoteLineCard
+              key={i}
+              line={line}
+              index={i}
+              materials={materials}
+              config={config}
+              materialTotals={materialTotals}
+              onChange={updateLine}
+              onRemove={removeLine}
+              onDuplicate={duplicateLine}
+              canRemove={lines.length > 1}
+              autoFocus={focusIndex === i}
+            />
+          ))}
+
           <button
             type="button"
-            onClick={() => { const v = Math.max(0, setupPoints - 1); setSetupPoints(v); scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines, setupPoints: v }); }}
-            className="w-8 h-8 rounded-lg border border-border bg-muted hover:bg-muted/80 flex items-center justify-center text-lg font-bold text-foreground transition-colors"
-          >−</button>
-          <span className="w-10 text-center text-lg font-bold font-mono text-foreground">{setupPoints}</span>
-          <button
-            type="button"
-            onClick={() => { const v = setupPoints + 1; setSetupPoints(v); scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines, setupPoints: v }); }}
-            className="w-8 h-8 rounded-lg border border-border bg-muted hover:bg-muted/80 flex items-center justify-center text-lg font-bold text-foreground transition-colors"
-          >+</button>
+            onClick={addLine}
+            className="w-full flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border py-3 text-sm text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-card transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            <Plus className="w-4 h-4" /> Aggiungi componente
+            <span className="qf-kbd ml-1">Ctrl + Invio</span>
+          </button>
+
+          <div className="pt-3">
+            <DedicatedScenarioCard
+              value={dedicated}
+              onChange={(v) => edit(() => setDedicated(v))}
+              lines={validLines}
+              materials={materials}
+              config={config}
+              setupPoints={setupPoints}
+            />
+          </div>
         </div>
+
+        {/* Riepilogo */}
+        <aside className="xl:sticky xl:top-6 space-y-3 max-w-xl xl:max-w-none">
+          <QuoteSummary
+            lines={validLines}
+            materials={materials}
+            config={config}
+            materialTotals={materialTotals}
+            setupPoints={setupPoints}
+            onSetupChange={(v) => edit(() => setSetupPoints(v))}
+            totalGrams={totalMaterialGrams}
+          />
+          {validLines.length === 0 && (
+            <p className="text-xs text-muted-foreground px-1">
+              Il riepilogo si riempie quando un componente ha nome e materiale.
+            </p>
+          )}
+        </aside>
       </div>
-
-      <DedicatedScenarioCard
-        value={dedicated}
-        onChange={(v) => { setDedicated(v); scheduleAutoSave({ clientName, quoteDate, paymentTerms, lines, setupPoints, dedicated: v }); }}
-        lines={validLines}
-        materials={materials}
-        config={config}
-        setupPoints={setupPoints}
-      />
-
-      {/* Summary */}
-      {validLines.length > 0 && (
-        <div className="max-w-sm ml-auto">
-          <QuoteSummary lines={validLines} materials={materials} config={config} materialTotals={materialTotals} setupPoints={setupPoints} />
-        </div>
-      )}
-
-      {/* Totale materiale da utilizzare */}
-      {totalMaterialGrams > 0 && (
-        <div className="max-w-sm ml-auto mt-3 bg-card rounded-xl border border-border px-5 py-3 flex items-center justify-between">
-          <span className="text-xs font-medium text-muted-foreground">Materiale totale da utilizzare</span>
-          <span className="text-sm font-bold font-mono text-foreground">
-            {(totalMaterialGrams / 1000).toFixed(2)} kg
-          </span>
-        </div>
-      )}
     </div>
   );
 }

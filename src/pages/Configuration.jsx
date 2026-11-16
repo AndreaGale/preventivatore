@@ -105,7 +105,7 @@ export default function Configuration() {
                       <Input
                         type="number"
                         step={f.isPercent ? '0.01' : '1'}
-                        value={f.isPercent ? ((form[f.key] || 0) * 100) : (form[f.key] || '')}
+                        value={f.isPercent ? Math.round((form[f.key] || 0) * 10000) / 100 : (form[f.key] || '')}
                         onChange={e => {
                           const val = parseFloat(e.target.value) || 0;
                           setForm({ ...form, [f.key]: f.isPercent ? val / 100 : val });
@@ -149,7 +149,7 @@ export default function Configuration() {
               value={form.markup_table}
               onChange={(table) => setForm({ ...form, markup_table: table })}
             />
-            <p className="text-xs text-muted-foreground mt-3">Le soglie devono essere ordinate per quantit\u00e0 crescente. Il markup viene interpolato linearmente tra le soglie.</p>
+            <p className="text-xs text-muted-foreground mt-3">Le soglie devono essere ordinate per quantità crescente. Il markup viene interpolato linearmente tra le soglie.</p>
           </CardContent>
         </Card>
       </div>

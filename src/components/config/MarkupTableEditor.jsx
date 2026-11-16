@@ -28,7 +28,7 @@ export default function MarkupTableEditor({ value, onChange }) {
     <div>
       <div className="space-y-2">
         <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-1 text-xs font-medium text-muted-foreground">
-          <span>Quantit\u00e0 (soglia)</span>
+          <span>Quantità (soglia)</span>
           <span>Markup</span>
           <span />
         </div>

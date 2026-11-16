@@ -56,7 +56,7 @@ export default function DurationInput({ value, onChange, showDays = true }) {
 
   return (
     <div
-      className="flex items-center h-8 w-full rounded-md border border-input bg-background px-1.5 focus-within:ring-1 focus-within:ring-ring"
+      className="qf-field qf-duration"
       title={`${lastEmitted.current} minuti totali`}
     >
       {fields.map(([key, unit]) => (
@@ -68,9 +68,9 @@ export default function DurationInput({ value, onChange, showDays = true }) {
             onBlur={normalize}
             onFocus={(e) => e.target.select()}
             placeholder="0"
-            className="w-full min-w-0 bg-transparent text-xs font-mono text-right outline-none placeholder:text-muted-foreground/50"
+            aria-label={{ d: 'giorni', h: 'ore', m: 'minuti' }[key]}
           />
-          <span className="text-[10px] text-muted-foreground ml-0.5 mr-1">{unit}</span>
+          <span className="qf-unit">{unit}</span>
         </label>
       ))}
     </div>

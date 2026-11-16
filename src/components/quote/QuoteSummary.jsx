@@ -1,62 +1,109 @@
 import React from 'react';
+import { Minus, Plus } from 'lucide-react';
 import { calculateLinePrice } from '@/lib/pricingEngine';
 
-export default function QuoteSummary({ lines, materials, config, materialTotals = {}, setupPoints = 0 }) {
+const eur = (v) =>
+  `€ ${(Number.isFinite(v) ? v : 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' })}`;
+
+const SETUP_POINT_PRICE = 15;
+
+export default function QuoteSummary({ lines, materials, config, materialTotals = {}, setupPoints = 0, onSetupChange, totalGrams = 0 }) {
   const totals = lines.reduce(
     (acc, line) => {
-      const material = materials.find(m => m.code === line.material_code);
+      const material = materials.find((m) => m.code === line.material_code);
       const calc = calculateLinePrice(line, material, config, materials, materialTotals);
       return {
-        materialCost: acc.materialCost + calc.materialCost * line.quantity,
-        machineCost: acc.machineCost + calc.machineCost * line.quantity,
-        laborCost: acc.laborCost + calc.laborCost * line.quantity,
-        productionCost: acc.productionCost + calc.productionCost * line.quantity,
+        pieces: acc.pieces + (line.quantity || 1),
+        listPrice: acc.listPrice + calc.preDiscountTotal,
         finalPrice: acc.finalPrice + calc.finalPrice,
+        productionCost: acc.productionCost + calc.costWithFailRate * (line.quantity || 1),
       };
     },
-    { materialCost: 0, machineCost: 0, laborCost: 0, productionCost: 0, finalPrice: 0 }
+    { pieces: 0, listPrice: 0, finalPrice: 0, productionCost: 0 }
   );
 
-  const setupCost = setupPoints * 15;
+  const setupCost = setupPoints * SETUP_POINT_PRICE;
   const subtotal = totals.finalPrice + setupCost;
   const iva = subtotal * 0.22;
   const total = subtotal + iva;
+  const discount = totals.listPrice - totals.finalPrice;
+  const margin = subtotal - totals.productionCost;
+  const marginPct = subtotal > 0 ? (margin / subtotal) * 100 : 0;
 
   return (
-    <div className="bg-card rounded-xl border border-border p-6">
-      <h3 className="font-semibold text-sm mb-4 text-foreground">Riepilogo Costi</h3>
-      <div className="space-y-2">
-        <Row label="Materiali" value={totals.materialCost} muted />
-        <Row label="Macchina" value={totals.machineCost} muted />
-        <Row label="Manodopera" value={totals.laborCost} muted />
-        <div className="border-t border-border my-3" />
-        <Row label="Costo Produzione" value={totals.productionCost} />
-        <div className="border-t border-border my-3" />
-        <Row label="Componenti" value={totals.finalPrice} bold />
-        {setupCost > 0 && <Row label={`Attrezzaggio (${setupPoints}pt)`} value={setupCost} bold />}
-        <Row label="Subtotale" value={subtotal} bold />
-        <Row label="IVA (22%)" value={iva} muted />
-        <div className="border-t border-border my-3" />
-        <div className="flex justify-between items-center">
-          <span className="text-base font-bold text-foreground">Totale</span>
-          <span className="text-xl font-bold text-primary font-mono">
-            €{total.toFixed(2)}
-          </span>
-        </div>
+    <section className="qf-panel overflow-hidden" aria-label="Riepilogo preventivo">
+      <div className="px-5 pt-4 pb-3 border-b border-border">
+        <h2 className="text-sm font-semibold">Riepilogo</h2>
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {lines.length} {lines.length === 1 ? 'componente' : 'componenti'}, {totals.pieces.toLocaleString('it-IT')} pz
+          {totalGrams > 0 && `, ${(totalGrams / 1000).toLocaleString('it-IT', { maximumFractionDigits: 2 })} kg di materiale`}
+        </p>
       </div>
+
+      <dl className="px-5 py-3 space-y-2 text-sm">
+        {discount > 0.005 && (
+          <Row label="Sconti applicati" value={`− ${eur(discount)}`} muted />
+        )}
+        <Row label="Componenti" value={eur(totals.finalPrice)} />
+
+        <div className="flex items-center justify-between gap-3">
+          <dt>
+            Attrezzaggio
+            <span className="block text-[11px] text-muted-foreground tabular-nums">
+              {setupPoints > 0 ? `${eur(setupCost)} (${eur(SETUP_POINT_PRICE)} a punto)` : `${eur(SETUP_POINT_PRICE)} a punto`}
+            </span>
+          </dt>
+          <dd className="flex items-center gap-1.5">
+            <StepButton label="Togli un punto" onClick={() => onSetupChange(Math.max(0, setupPoints - 1))} disabled={setupPoints === 0}>
+              <Minus className="w-3.5 h-3.5" />
+            </StepButton>
+            <span className="w-6 text-center font-semibold tabular-nums" aria-live="polite">{setupPoints}</span>
+            <StepButton label="Aggiungi un punto" onClick={() => onSetupChange(setupPoints + 1)}>
+              <Plus className="w-3.5 h-3.5" />
+            </StepButton>
+          </dd>
+        </div>
+
+        <div className="border-t border-border pt-2">
+          <Row label="Imponibile" value={eur(subtotal)} strong />
+        </div>
+        <Row label="IVA 22%" value={eur(iva)} muted />
+      </dl>
+
+      <div className="px-5 py-4 bg-foreground text-background">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-sm">Totale</span>
+          <span className="text-2xl font-bold tabular-nums" style={{ fontStretch: '112%' }}>{eur(total)}</span>
+        </div>
+        {subtotal > 0 && (
+          <p className="mt-1 text-xs opacity-75 tabular-nums">
+            Margine sul costo di produzione: {eur(margin)} ({marginPct.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%)
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function Row({ label, value, muted, strong }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className={muted ? 'text-muted-foreground' : ''}>{label}</dt>
+      <dd className={`tabular-nums ${muted ? 'text-muted-foreground' : ''} ${strong ? 'font-semibold' : ''}`}>{value}</dd>
     </div>
   );
 }
 
-function Row({ label, value, muted, bold }) {
+function StepButton({ children, label, ...rest }) {
   return (
-    <div className="flex justify-between items-center">
-      <span className={`text-xs ${muted ? 'text-muted-foreground' : bold ? 'font-semibold text-foreground' : 'text-foreground'}`}>
-        {label}
-      </span>
-      <span className={`text-xs font-mono ${muted ? 'text-muted-foreground' : bold ? 'font-semibold text-foreground' : 'text-foreground'}`}>
-        €{value.toFixed(2)}
-      </span>
-    </div>
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      className="w-7 h-7 rounded-md border border-input bg-card flex items-center justify-center hover:bg-muted disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+      {...rest}
+    >
+      {children}
+    </button>
   );
 }
