@@ -322,13 +322,13 @@ export default function Quoter() {
               </tr>
               <tr className="bg-muted/50 border-b border-border">
                 <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">Peso (g)</th>
-                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">T.Stampa (min)</th>
+                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center" colSpan={2}>Tempo stampa</th>
                 <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">T.MDO (min)</th>
                 <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">Qtà</th>
                 <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center" colSpan={2}>Prezzo/pz</th>
                 <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">Partner</th>
                 <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center">Cont.</th>
-                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center" colSpan={3}>Al pz</th>
+                <th className="p-1.5 text-[10px] font-medium text-muted-foreground text-center" colSpan={2}>Al pz</th>
               </tr>
             </thead>
             <tbody>

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { formatMinutes } from './DurationInput';
 import { parse3MF } from '@/lib/threeMfParser';
 import { Button } from '@/components/ui/button';
 import { FileBox, AlertCircle, Loader2, X, ChevronDown, ChevronRight, Package, Clock, CheckCircle2, Layers, Zap } from 'lucide-react';
@@ -223,7 +224,7 @@ export default function ThreeMfUpload({ onImport }) {
                       {plate.print_time_min != null && (
                         <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
                           <Clock className="w-3 h-3" />
-                          {plate.print_time_min} min
+                          {formatMinutes(plate.print_time_min)}
                         </span>
                       )}
                     </button>

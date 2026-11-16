@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import DurationInput from './DurationInput';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Trash2, ChevronDown, ChevronRight, Copy } from 'lucide-react';
@@ -133,14 +134,8 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         </td>
 
         {/* T.Stampa */}
-        <td className="p-1.5">
-          <Input
-            type="number"
-            value={line.print_time_min || ''}
-            onChange={e => update('print_time_min', parseFloat(e.target.value) || 0)}
-            placeholder="0"
-            className="h-8 text-xs w-full font-mono text-center"
-          />
+        <td className="p-1.5" colSpan={2}>
+          <DurationInput value={line.print_time_min} onChange={v => update('print_time_min', v)} />
         </td>
 
         {/* T.MDO */}
@@ -210,7 +205,7 @@ export default function QuoteLineRow({ line, index, materials, config, onChange,
         </td>
 
         {/* Al pz */}
-        <td className="p-1.5 text-xs font-mono text-center text-muted-foreground whitespace-nowrap" colSpan={3}>
+        <td className="p-1.5 text-xs font-mono text-center text-muted-foreground whitespace-nowrap" colSpan={2}>
           €{calc.finalPricePerUnit.toFixed(2)} /pz
         </td>
       </tr>
