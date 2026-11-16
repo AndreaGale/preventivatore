@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Copy, Trash2, ChevronDown, RotateCcw } from 'lucide-react';
 import DurationInput from './DurationInput';
 import MaterialSelector from './MaterialSelector';
-import { calculateLinePrice } from '@/lib/pricingEngine';
+import { calculateLinePrice, isPricedLine } from '@/lib/pricingEngine';
 
 const eur = (v, d = 2) =>
   `€ ${(Number.isFinite(v) ? v : 0).toLocaleString('it-IT', { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: 'always' })}`;
@@ -60,10 +60,11 @@ export default function QuoteLineCard({
   const hasSub = line.sub_materials && line.sub_materials.length > 0;
   const material = hasSub ? null : materials.find((m) => m.code === line.material_code);
   const calc = calculateLinePrice(line, material, config, materials, materialTotals);
-  const qty = line.quantity || 1;
+  const qty = calc.quantity;
   const suggested = calc.netPrice / qty;
   const manual = line.manual_price > 0;
   const discounted = calc.discountFactor < 1;
+  const missingMaterial = !!line.part_name && !isPricedLine(line);
 
   useEffect(() => {
     if (autoFocus) nameRef.current?.focus();
@@ -161,6 +162,12 @@ export default function QuoteLineCard({
             Dettaglio costi
           </button>
         </div>
+
+        {missingMaterial && (
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+            Scegli il materiale: finché manca, questo componente resta fuori dal totale e dal PDF.
+          </p>
+        )}
 
         {expanded && (
           <dl className="qf-costs">

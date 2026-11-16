@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { calculateLinePrice, computeMaterialTotals } from './pricingEngine';
+import { calculateLinePrice, computeMaterialTotals, isPricedLine } from './pricingEngine';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layout ispirato al preventivo ufficiale (Odoo) di 3D ShapeFarm / Materia SRL.
@@ -197,7 +197,8 @@ export async function buildQuotePdf({ clientName, paymentTerms, date, lines, mat
   let subtotal = 0;
   // Stessi scaglioni prezzo materiale usati a schermo e nel report costi
   const materialTotals = computeMaterialTotals(lines);
-  lines.filter((l) => l.part_name).forEach((line) => {
+  // Solo righe con nome e materiale, come nel riepilogo a schermo e nel report costi
+  lines.filter(isPricedLine).forEach((line) => {
     const material = materials.find((m) => m.code === line.material_code);
     const calc = calculateLinePrice(line, material, config, materials, materialTotals);
     subtotal += calc.finalPrice;
@@ -220,8 +221,8 @@ export async function buildQuotePdf({ clientName, paymentTerms, date, lines, mat
       title: line.part_name,
       sub: matLabel,
       qty,
-      unit: calc.finalPrice / qty,
-      unitPre: calc.preDiscountTotal / qty,
+      unit: calc.finalPricePerUnit,
+      unitPre: calc.unitPrice,
       discountLabel,
       total: calc.finalPrice,
     });

@@ -16,12 +16,25 @@ export const DEFAULT_MARKUP_TABLE = [
   { qty: 50000, markup: 1.351 },
 ];
 
+const num = (v) => {
+  const n = typeof v === 'string' ? parseFloat(v.replace(',', '.')) : Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+/** Arrotonda al centesimo (evita 1,005 → 1,00 dei float). */
+export const round2 = (v) => Math.round((num(v) + Number.EPSILON) * 100) / 100;
+
+// Usa solo righe valide e ordinate per quantità: l'interpolazione presuppone soglie crescenti
 function resolveTable(customTable) {
-  return (customTable && customTable.length > 0) ? customTable : DEFAULT_MARKUP_TABLE;
+  const valid = (customTable || [])
+    .map((r) => ({ qty: num(r.qty), markup: num(r.markup) }))
+    .filter((r) => r.qty > 0 && r.markup > 0)
+    .sort((a, b) => a.qty - b.qty);
+  return valid.length > 0 ? valid : DEFAULT_MARKUP_TABLE;
 }
 
-export function getMarkup(quantity, customTable) {
+export function getMarkup(rawQuantity, customTable) {
   const table = resolveTable(customTable);
+  const quantity = Math.max(1, num(rawQuantity));
   // Interpolazione lineare tra i livelli
   if (quantity <= table[0].qty) return table[0].markup;
   if (quantity >= table[table.length - 1].qty) return table[table.length - 1].markup;
@@ -58,17 +71,34 @@ export function computeDefaultConfig() {
   };
 }
 
-export function computeDerivedCosts(config) {
+/**
+ * Config salvata + default per i campi mancanti o vuoti (una config salvata prima
+ * dell'aggiunta di un parametro non deve produrre prezzi NaN).
+ */
+export function normalizeConfig(config) {
+  const out = computeDefaultConfig();
+  for (const [k, v] of Object.entries(config || {})) {
+    if (v === null || v === undefined || v === '') continue;
+    out[k] = v;
+  }
+  for (const k of Object.keys(computeDefaultConfig())) out[k] = num(out[k]);
+  return out;
+}
+
+const safeDiv = (a, b) => (b > 0 ? a / b : 0);
+
+export function computeDerivedCosts(rawConfig) {
+  const config = normalizeConfig(rawConfig);
   const totalMonthlyHours = config.working_days_per_month * config.hours_per_day * config.num_printers * config.farm_efficiency;
-  const fixedCostPerHour = config.monthly_fixed_costs / totalMonthlyHours;
-  
-  const depreciationPerHour = config.printer_cost / (config.printer_lifespan_years * 12 * config.working_days_per_month * config.hours_per_day);
+  const fixedCostPerHour = safeDiv(config.monthly_fixed_costs, totalMonthlyHours);
+
+  const depreciationPerHour = safeDiv(config.printer_cost, config.printer_lifespan_years * 12 * config.working_days_per_month * config.hours_per_day);
   const energyCostPerHour = config.power_consumption_kw * config.energy_cost_per_kwh;
   
   const totalMachineCostPerHour = fixedCostPerHour + depreciationPerHour + config.maintenance_cost_per_hour + energyCostPerHour;
   const machineCostPerMinute = totalMachineCostPerHour / 60;
   
-  const laborCostPerHour = config.monthly_gross_salary / config.monthly_work_hours;
+  const laborCostPerHour = safeDiv(config.monthly_gross_salary, config.monthly_work_hours);
   const laborCostPerMinute = laborCostPerHour / 60;
   
   return {
@@ -144,8 +174,12 @@ export function getPricePerGram(material, totalGramsInQuote = 0) {
   return best.price_per_gram || material.price_per_gram || 0;
 }
 
-export function calculateLinePrice(line, material, config, allMaterials, materialTotals = {}) {
+export function calculateLinePrice(line, material, rawConfig, allMaterials, materialTotals = {}) {
+  const config = normalizeConfig(rawConfig);
   const derived = computeDerivedCosts(config);
+  const qty = Math.max(1, Math.round(num(line.quantity)) || 1);
+  const printMin = num(line.print_time_min);
+  const laborMin = num(line.labor_time_min);
 
   // Calcolo costo materiale: supporta multi-materiale (sub_materials) o singolo materiale
   let materialCost = 0;
@@ -153,41 +187,45 @@ export function calculateLinePrice(line, material, config, allMaterials, materia
   if (line.sub_materials && line.sub_materials.length > 0) {
     for (const sm of line.sub_materials) {
       const mat = allMaterials?.find(m => m.code === sm.material_code);
-      const w = sm.weight_g * 1.05;
+      const w = num(sm.weight_g) * 1.05;
       const ppg = getPricePerGram(mat, materialTotals[sm.material_code] || 0);
       materialCost += w * ppg;
-      totalWeight += sm.weight_g;
+      totalWeight += num(sm.weight_g);
     }
   } else {
-    totalWeight = line.weight_g;
+    totalWeight = num(line.weight_g);
     const weightWithWaste = totalWeight * 1.05;
     const ppg = getPricePerGram(material, materialTotals[line.material_code] || 0);
     materialCost = weightWithWaste * ppg;
   }
 
-  const machineCost = line.print_time_min * derived.machineCostPerMinute;
+  const machineCost = printMin * derived.machineCostPerMinute;
   // Scomposizione del costo macchina al pezzo (somma = machineCost)
-  const printHours = (line.print_time_min || 0) / 60;
+  const printHours = printMin / 60;
   const machineBreakdown = {
     fixed: printHours * derived.fixedCostPerHour,
     depreciation: printHours * derived.depreciationPerHour,
     maintenance: printHours * (config.maintenance_cost_per_hour || 0),
     energy: printHours * derived.energyCostPerHour,
   };
-  const laborCost = line.labor_time_min * derived.laborCostPerMinute;
+  const laborCost = laborMin * derived.laborCostPerMinute;
   
   const productionCost = materialCost + machineCost + laborCost;
   const costWithFailRate = productionCost * (1 + config.fail_rate);
   
-  const markup = getMarkup(line.quantity, config.markup_table);
-  const netPrice = costWithFailRate * markup * line.quantity;
-  const pricePerUnit = netPrice / line.quantity;
-  
+  const markup = getMarkup(qty, config.markup_table);
+  const netPrice = costWithFailRate * markup * qty;
+  const pricePerUnit = netPrice / qty;
+
   // Sconti: "Continuativo" (-30%) prevale su "Partner" (-15%)
   const discountFactor = line.continuoativo_discount ? 0.70 : line.partner_discount ? 0.85 : 1;
-  // manual_price è al pezzo; se impostato, il totale è manual_price * quantity
-  const basePriceTotal = line.manual_price ? line.manual_price * line.quantity : netPrice;
-  const finalPrice = basePriceTotal * discountFactor;
+  // I prezzi al pezzo sono arrotondati al centesimo e i totali = prezzo al pezzo × quantità,
+  // come in fattura: così prezzo unitario × quantità torna sempre con il totale riga.
+  const manualPrice = num(line.manual_price);
+  const unitPre = round2(manualPrice > 0 ? manualPrice : pricePerUnit);
+  const unitFinal = round2(unitPre * discountFactor);
+  const basePriceTotal = round2(unitPre * qty);
+  const finalPrice = round2(unitFinal * qty);
 
   return {
     weightWithWaste: totalWeight * 1.05,
@@ -201,10 +239,12 @@ export function calculateLinePrice(line, material, config, allMaterials, materia
     markup,
     netPrice,
     pricePerUnit,
-    useManualPrice: !!line.manual_price,
+    useManualPrice: manualPrice > 0,
     discountFactor,
     preDiscountTotal: basePriceTotal,
     finalPrice,
-    finalPricePerUnit: finalPrice / (line.quantity || 1),
+    unitPrice: unitPre,
+    finalPricePerUnit: unitFinal,
+    quantity: qty,
   };
 }

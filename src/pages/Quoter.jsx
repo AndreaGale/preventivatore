@@ -12,7 +12,7 @@ import QuoteLineCard from '@/components/quote/QuoteLineCard';
 import QuoteSummary from '@/components/quote/QuoteSummary';
 import ThreeMfUpload from '@/components/quote/ThreeMfUpload';
 import DedicatedScenarioCard from '@/components/quote/DedicatedScenarioCard';
-import { computeDefaultConfig, computeMaterialTotals, isPricedLine } from '@/lib/pricingEngine';
+import { normalizeConfig, computeMaterialTotals, isPricedLine } from '@/lib/pricingEngine';
 import { useNavigate } from 'react-router-dom';
 import { useRef } from 'react';
 
@@ -60,7 +60,8 @@ export default function Quoter() {
     queryFn: () => base44.entities.BusinessConfig.list(),
   });
 
-  const config = configs.length > 0 ? configs[0] : computeDefaultConfig();
+  // Config salvata completata con i default: un campo mancante non deve rompere i prezzi
+  const config = normalizeConfig(configs[0]);
 
   // Carica preventivo esistente se c'è un id nell'URL
   const { data: existingQuote } = useQuery({
